@@ -87,7 +87,7 @@ void b_compare(B *b, unsigned int i, Rcpp::NumericMatrix errMat,
       comp.i = i;
       comp.index = index;
       comp.lambda = lambda;
-      comp.hamming = sub->nsubs;
+      comp.hamming = sub ? sub->nsubs : (unsigned int) -1; // DadaS: sub puede ser NULL (antes: puntero nulo)
       b->bi[i]->comp.push_back(comp);
       if(i==0 || raw == b->bi[i]->center) { // Update on init (i=0) or if the center (as b_bud doesn't update raw->comp)
         raw->comp = comp;

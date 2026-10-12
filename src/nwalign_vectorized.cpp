@@ -86,7 +86,7 @@ char **nwalign_vectorized2(const char *s1, size_t len1, const char *s2, size_t l
   int16_t *d = (int16_t *) malloc(ncol * nrow * sizeof(int16_t));
   int16_t *p = (int16_t *) malloc(ncol * nrow * sizeof(int16_t));
   char *s1r = (char *) malloc(len1 + 1); // s1 invertido (ver dploop_fused)
-  if (d == NULL || p == NULL || s1r == NULL)  Rcpp::stop("Memory allocation failed.");
+  if (d == NULL || p == NULL || s1r == NULL)  dada_stop("Memory allocation failed.");
   for(i=0;i<len1;i++) { s1r[i] = s1[len1-1-i]; }
   
   // For banding issues later on
@@ -240,7 +240,7 @@ char **nwalign_vectorized2(const char *s1, size_t len1, const char *s2, size_t l
 
   char *al0 = (char *) malloc((nrow+1) * sizeof(char));
   char *al1 = (char *) malloc((nrow+1) * sizeof(char));
-  if(al0 == NULL || al1 == NULL) Rcpp::stop("Memory allocation failed.");
+  if(al0 == NULL || al1 == NULL) dada_stop("Memory allocation failed.");
   
   // Trace back over p to form the alignment.
   size_t len_al = 0;
@@ -262,8 +262,7 @@ char **nwalign_vectorized2(const char *s1, size_t len1, const char *s2, size_t l
         al1[len_al] = '-';
         break;
       default:
-        Rprintf("len1/2=(%i, %i), nrow,ncol=(%i,%i), ij=(%i,%i), rc=(%i,%i), d[][]=%i, p[][]=%i\n", len1, len2, nrow, ncol, i,j,i+j,(2*start_col+j-i)/2, d[(i+j)*ncol + (2*start_col+j-i)/2], p[(i+j)*ncol + (2*start_col+j-i)/2]);
-        Rcpp::stop("N-W Align out of range.");
+        dada_stop("N-W Align out of range: len1/2=(%i, %i), nrow,ncol=(%i,%i), ij=(%i,%i).", (int) len1, (int) len2, (int) nrow, (int) ncol, (int) i, (int) j);
     }
     len_al++;
   }
@@ -284,10 +283,10 @@ char **nwalign_vectorized2(const char *s1, size_t len1, const char *s2, size_t l
   
   // Allocate memory to alignment strings.
   char **al = (char **) malloc( 2 * sizeof(char *) ); //E
-  if (al == NULL)  Rcpp::stop("Failed memory allocation.");
+  if (al == NULL)  dada_stop("Failed memory allocation.");
   al[0] = (char *) malloc(len_al+1); //E
   al[1] = (char *) malloc(len_al+1); //E
-  if (al[0] == NULL || al[1] == NULL)  Rcpp::stop("Failed memory allocation.");
+  if (al[0] == NULL || al[1] == NULL)  dada_stop("Failed memory allocation.");
   
   // Reverse the alignment strings (since traced backwards).
   for (i=0;i<len_al;i++) {
@@ -308,7 +307,7 @@ Rcpp::CharacterVector C_nwvec(std::vector<std::string> s1, std::vector<std::stri
   char **al;
   int i;
   if(s1.size() != s2.size()) {
-    Rcpp::stop("Character vectors to be aligned must be of equal length.");
+    dada_stop("Character vectors to be aligned must be of equal length.");
   }
   Rcpp::CharacterVector rval(s1.size()*2);
   

@@ -9,6 +9,8 @@
 #include <RcppParallel.h>
 #include <unordered_map>
 #include <unordered_set>
+#include <stdexcept>
+#include <cstdarg>
 //#include <gsl/gsl_cdf.h>
 
 // Define a variable that is true of SSE2 supported
@@ -32,6 +34,20 @@
 #define GRAIN_SIZE 10
 #define CACHE_STRIDE 64 // up to 64kb of distance between compared kmer8 vectors
 
+
+/* DadaS: error seguro para hilos.
+   Rcpp::stop llama a la API de R (construye un objeto de R con la traza), lo que NO es seguro fuera
+   del hilo principal: si fallaba algo dentro de un RcppParallel::Worker, R podía caerse.
+   dada_stop solo lanza una std::runtime_error; TBB la traslada al hilo que llamó a parallelFor
+   y Rcpp la convierte en un error normal de R. Desde el hilo principal se comporta igual que Rcpp::stop. */
+[[noreturn]] inline void dada_stop(const char *fmt, ...) {
+  char buf[512];
+  va_list args;
+  va_start(args, fmt);
+  vsnprintf(buf, sizeof(buf), fmt, args);
+  va_end(args);
+  throw std::runtime_error(buf);
+}
 
 /* -------------------------------------------
    -------- STRUCTS OBJECTS STRUCTS ----------

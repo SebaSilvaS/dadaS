@@ -70,15 +70,16 @@ unsigned int tax_karray(const char *seq, unsigned int k, int *karray) {
   return(j);
 }
 
-int get_best_genus(int *karray, float *out_logp, unsigned int arraylen, unsigned int n_kmers, unsigned int ngenus, float *lgk_probability) {
+// DadaS: el generador aleatorio (solo para desempatar) viene de afuera, uno por secuencia y sembrado desde
+// el RNG de R. Antes se creaban std::random_device + mt19937 en CADA llamada (~101 por secuencia): era lento
+// e ignoraba set.seed(), así que los bootstraps no eran reproducibles.
+int get_best_genus(int *karray, float *out_logp, unsigned int arraylen, unsigned int n_kmers, unsigned int ngenus, float *lgk_probability, std::mt19937 &gen) {
   unsigned int pos;
   float *lgk_v;
   int kmer, g, max_g = -1;
   float logp, max_logp = -FLT_MAX; // Init value to be replaced on first iteration
   double rv; // Dummy random variable
   unsigned int nmax=0; // Number of times the current max logp has been seen
-  std::random_device rd;  //Will be used to obtain a seed for the random number engine
-  std::mt19937 gen(rd()); //Standard mersenne_twister_engine seeded with rd()
   std::uniform_real_distribution<> cunif(0.0, 1.0);
   
   for(g=0;g<ngenus;g++) {
@@ -113,13 +114,15 @@ int get_best_genus(int *karray, float *out_logp, unsigned int arraylen, unsigned
 struct AssignParallel : public RcppParallel::Worker
 {
   // source data
-  std::vector<std::string> seqs;
-  std::vector<std::string> rcs;
+  const std::vector<std::string> &seqs; // DadaS: referencias, no copias
+  const std::vector<std::string> &rcs;
   float *lgk_probability;
   int *C_genusmat;
   double *C_unifs;
   int *C_rboot;
   int *C_rboot_tax;
+  uint32_t *C_seeds; // DadaS: una semilla por secuencia (desde el RNG de R)
+  int *C_err;        // DadaS: != 0 si hubo un error en un hilo (no se puede llamar a R desde un hilo)
 
   // destination assignment array
   int *C_rval;
@@ -132,11 +135,11 @@ struct AssignParallel : public RcppParallel::Worker
   bool try_rc;
   
   // initialize with source and destination
-  AssignParallel(std::vector<std::string> seqs, std::vector<std::string> rcs, float *lgk_probability,
-                 int *C_genusmat, double *C_unifs, int *C_rboot, int *C_rboot_tax, int *C_rval, 
+  AssignParallel(const std::vector<std::string> &seqs, const std::vector<std::string> &rcs, float *lgk_probability,
+                 int *C_genusmat, double *C_unifs, int *C_rboot, int *C_rboot_tax, uint32_t *C_seeds, int *C_err, int *C_rval, 
                  unsigned int k, size_t n_kmers, size_t ngenus, size_t nlevel, unsigned int max_arraylen, bool try_rc)
     : seqs(seqs), rcs(rcs), lgk_probability(lgk_probability), 
-      C_genusmat(C_genusmat), C_unifs(C_unifs), C_rboot(C_rboot), C_rboot_tax(C_rboot_tax), C_rval(C_rval), 
+      C_genusmat(C_genusmat), C_unifs(C_unifs), C_rboot(C_rboot), C_rboot_tax(C_rboot_tax), C_seeds(C_seeds), C_err(C_err), C_rval(C_rval), 
       k(k), n_kmers(n_kmers), ngenus(ngenus), nlevel(nlevel), max_arraylen(max_arraylen), try_rc(try_rc) {}
 
   // Rprintf("Classify the sequences.\n");
@@ -162,14 +165,15 @@ struct AssignParallel : public RcppParallel::Worker
           C_rboot_tax[j*NBOOT + boot] = NA_INTEGER;
         }
       } else {
+        std::mt19937 gen(C_seeds[j]); // DadaS: un generador por secuencia → reproducible e independiente de los hilos
         arraylen = tax_karray(seqs[j].c_str(), k, karray);
   
         // Find best hit
-        max_g = get_best_genus(karray, &logp, arraylen, n_kmers, ngenus, lgk_probability);
+        max_g = get_best_genus(karray, &logp, arraylen, n_kmers, ngenus, lgk_probability, gen);
         if(try_rc) { // see if rev-comp is a better match to refs
           arraylen_rc = tax_karray(rcs[j].c_str(), k, karray_rc);
-          if(arraylen != arraylen_rc) { Rcpp::stop("Discrepancy between forward and RC arraylen."); }
-          max_g_rc = get_best_genus(karray_rc, &logp_rc, arraylen_rc, n_kmers, ngenus, lgk_probability);
+          if(arraylen != arraylen_rc) { *C_err = 1; return; } // DadaS: antes Rcpp::stop desde un hilo
+          max_g_rc = get_best_genus(karray_rc, &logp_rc, arraylen_rc, n_kmers, ngenus, lgk_probability, gen);
           if(logp_rc > logp) { // rev-comp is better, replace with it
             max_g = max_g_rc;
             memcpy(karray, karray_rc, arraylen * sizeof(int));
@@ -184,7 +188,7 @@ struct AssignParallel : public RcppParallel::Worker
           for(i=0;i<(arraylen/8);i++,booti++) {
             bootarray[i] = karray[(int) (arraylen*unifs[booti])];
           }
-          boot_g = get_best_genus(bootarray, &logp, (arraylen/8), n_kmers, ngenus, lgk_probability);
+          boot_g = get_best_genus(bootarray, &logp, (arraylen/8), n_kmers, ngenus, lgk_probability, gen);
           C_rboot_tax[j*NBOOT+boot] = boot_g+1; // 1-index for return
           for(i=0;i<nlevel;i++) {
             if(C_genusmat[boot_g*nlevel+i] == C_genusmat[max_g*nlevel+i]) {
@@ -300,13 +304,26 @@ Rcpp::List C_assign_taxonomy2(std::vector<std::string> seqs, std::vector<std::st
     }
   }
   
-  AssignParallel assignParallel(seqs, rcs, lgk_probability, C_genusmat, C_unifs, C_rboot, C_rboot_tax, C_rval, k, n_kmers, ngenus, nlevel, max_arraylen, try_rc);
+  // DadaS: semillas por secuencia tomadas del RNG de R (respeta set.seed)
+  Rcpp::NumericVector seed_unifs = Rcpp::runif(nseq);
+  std::vector<uint32_t> C_seeds(nseq);
+  for(i=0;i<nseq;i++) { C_seeds[i] = (uint32_t) (seed_unifs[i] * 4294967295.0); }
+  int C_err = 0;
+  
+  AssignParallel assignParallel(seqs, rcs, lgk_probability, C_genusmat, C_unifs, C_rboot, C_rboot_tax, C_seeds.data(), &C_err, C_rval, k, n_kmers, ngenus, nlevel, max_arraylen, try_rc);
   int INTERRUPT_BLOCK_SIZE=128;
   for(i=0;i<nseq;i+=INTERRUPT_BLOCK_SIZE) {
     j = i+INTERRUPT_BLOCK_SIZE;
     if(j > nseq) { j = nseq; }
     RcppParallel::parallelFor(i, j, assignParallel, 1); // GRAIN_SIZE=1
+    if(C_err) break;
     Rcpp::checkUserInterrupt();
+  }
+  
+  if(C_err) {
+    free(C_rboot); free(C_rboot_tax); free(C_unifs); free(C_rval); free(C_genusmat);
+    free(genus_num_plus1); free(kmer_prior); free(ref_kv); free(lgk_probability);
+    Rcpp::stop("Discrepancy between forward and RC arraylen.");
   }
   
   // Copy from C-versions back to R objects

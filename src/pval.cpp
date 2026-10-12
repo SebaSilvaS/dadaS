@@ -107,7 +107,7 @@ double compute_lambda(Raw *raw, Sub *sub, Rcpp::NumericMatrix errMat, bool use_q
     if(nti1 == 0 || nti1 == 1 || nti1 == 2 || nti1 == 3) {
       tvec[pos1] = nti1*4 + nti1;
     } else {
-      Rcpp::stop("Non-ACGT sequences in compute_lambda.");
+      dada_stop("Non-ACGT sequences in compute_lambda.");
     }
     if(use_quals) {
       // Turn quality into the index in the array
@@ -120,9 +120,9 @@ double compute_lambda(Raw *raw, Sub *sub, Rcpp::NumericMatrix errMat, bool use_q
   // Now fix the ones where subs occurred
   for(s=0;s<sub->nsubs;s++) {
     pos0 = sub->pos[s];
-    if(pos0 < 0 || pos0 >= sub->len0) { Rcpp::stop("CL: Bad pos0: %i (len0=%i).", pos0, sub->len0); }
+    if(pos0 < 0 || pos0 >= sub->len0) { dada_stop("CL: Bad pos0: %i (len0=%i).", pos0, sub->len0); }
     pos1 = sub->map[sub->pos[s]];
-    if(pos1 < 0 || pos1 >= len1) { Rcpp::stop("CL: Bad pos1: %i (len1=%i).", pos1, len1); }
+    if(pos1 < 0 || pos1 >= len1) { dada_stop("CL: Bad pos1: %i (len1=%i).", pos1, len1); }
     
     nti0 = ((int) sub->nt0[s]) - 1;
     nti1 = ((int) sub->nt1[s]) - 1;
@@ -135,7 +135,7 @@ double compute_lambda(Raw *raw, Sub *sub, Rcpp::NumericMatrix errMat, bool use_q
     lambda = lambda * errMat(tvec[pos1], qind[pos1]);
   }
   
-  if(lambda < 0 || lambda > 1) { Rcpp::stop("Bad lambda."); }
+  if(lambda < 0 || lambda > 1) { dada_stop("Bad lambda."); }
   
   return lambda;
 }
@@ -159,7 +159,7 @@ double compute_lambda_ts(Raw *raw, Sub *sub, unsigned int ncol, double *err_mat,
     if(nti1 == 0 || nti1 == 1 || nti1 == 2 || nti1 == 3) {
       tvec[pos1] = nti1*4 + nti1;
     } else {
-      Rcpp::stop("Non-ACGT sequences in compute_lambda.");
+      dada_stop("Non-ACGT sequences in compute_lambda.");
     }
     if(use_quals) {
       // Turn quality into the index in the array
@@ -169,16 +169,16 @@ double compute_lambda_ts(Raw *raw, Sub *sub, unsigned int ncol, double *err_mat,
     }
     
     if( qind[pos1] > (ncol-1) ) {
-      Rcpp::stop("Rounded quality exceeded range of err lookup table.");
+      dada_stop("Rounded quality exceeded range of err lookup table.");
     }
   }
   
   // Now fix the ones where subs occurred
   for(s=0;s<sub->nsubs;s++) {
     pos0 = sub->pos[s];
-    if(pos0 < 0 || pos0 >= sub->len0) { Rcpp::stop("CL: Bad pos0: %i (len0=%i).", pos0, sub->len0); }
+    if(pos0 < 0 || pos0 >= sub->len0) { dada_stop("CL: Bad pos0: %i (len0=%i).", pos0, sub->len0); }
     pos1 = sub->map[sub->pos[s]];
-    if(pos1 < 0 || pos1 >= len1) { Rcpp::stop("CL: Bad pos1: %i (len1=%i).", pos1, len1); }
+    if(pos1 < 0 || pos1 >= len1) { dada_stop("CL: Bad pos1: %i (len1=%i).", pos1, len1); }
     
     nti0 = ((int) sub->nt0[s]) - 1;
     nti1 = ((int) sub->nt1[s]) - 1;
@@ -191,7 +191,7 @@ double compute_lambda_ts(Raw *raw, Sub *sub, unsigned int ncol, double *err_mat,
     lambda = lambda * err_mat[tvec[pos1]*ncol+qind[pos1]];
   }
   
-  if(lambda < 0 || lambda > 1) { Rcpp::stop("Bad lambda."); }
+  if(lambda < 0 || lambda > 1) { dada_stop("Bad lambda."); }
   
   return lambda;
 }
@@ -239,8 +239,8 @@ double compute_lambda_ts(Raw *raw, Sub *sub, unsigned int ncol, double *err_mat,
 // log_p is false
 double ppois(double x, double lambda, int lower_tail, int log_p)
 {
-  if(lambda <= 0.) Rcpp::stop("Lambda must be > 0.");
-  if (x < 0) Rcpp::stop("x must be >= 0.");
+  if(lambda <= 0.) dada_stop("Lambda must be > 0.");
+  if (x < 0) dada_stop("x must be >= 0.");
   x = floor(x + 1e-7); // Why?
   
   return pgamma(lambda, x + 1, 1., !lower_tail, log_p);
@@ -249,7 +249,7 @@ double ppois(double x, double lambda, int lower_tail, int log_p)
 // x > 0, alph is an integer and >=2, scale=1., lower_tail=true, log_p=false
 double pgamma(double x, double alph, double scale, int lower_tail, int log_p)
 {
-  if(alph <= 0. || scale <= 0.) Rcpp::stop("alph > 0 and scale > 0 are required.")
+  if(alph <= 0. || scale <= 0.) dada_stop("alph > 0 and scale > 0 are required.")
   x /= scale;
   return pgamma_raw (x, alph, lower_tail, log_p);
 }
