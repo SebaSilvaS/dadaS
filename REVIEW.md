@@ -164,5 +164,8 @@ discussion.
 3. `src/nwalign_vectorized.cpp`, `src/kmers_simd.h`: performance kernels.
 4. `R/indels.R`, `R/errorModels.R` (end of file), `R/dada.R`: new R functions and options.
 
-`workflow/` (Spanish, not part of the package and excluded from the build) holds the staged
-pipeline, the simulator and the analysis scripts behind the numbers above.
+`R CMD check` (R 4.3.3, Linux): 0 errors, 0 warnings, 8 notes, all inherited from DADA2 1.36.0
+(e.g. `ShortRead:::.set_omp_threads`, `.travis.yml`, undefined ggplot2 globals).
+
+The staged pipeline, the read simulator and the analysis scripts behind the numbers above live on
+the `dadaS` branch under `workflow/` (comments in Spanish; not part of the package).
