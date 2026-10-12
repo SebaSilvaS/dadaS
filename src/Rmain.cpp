@@ -1,4 +1,5 @@
 #include "dada.h"
+#include "kmers_simd.h"
 #include <Rcpp.h>
 ///#ifdef _WIN32 //  Windows
 /*  //do arm stuff
@@ -97,7 +98,7 @@ Rcpp::List dada_uniques(std::vector< std::string > seqs, std::vector<int> abunda
     Rprintf("SSE2 not supported.\n");
     SSE = 0;
   } */
-  if(!X64) { SSE=0; }
+  if(!DADAS_SIMD) { SSE=0; } // DadaS: SSE2 en x86 o NEON en ARM (ver kmers_simd.h)
   
   /********** CONSTRUCT RAWS *********/
   char seq[SEQLEN];
