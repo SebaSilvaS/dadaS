@@ -1,4 +1,5 @@
 #include "dada.h"
+#include "kmers_simd.h"
 #include <Rcpp.h>
 ///#ifdef _WIN32 //  Windows
 /*  //do arm stuff
@@ -13,7 +14,7 @@ void cpuid(int info[4], int InfoType){
 #endif */
 
 using namespace Rcpp;
-//' @useDynLib dada2
+//' @useDynLib dadaS
 //' @importFrom Rcpp evalCpp
 
 B *run_dada(Raw **raws, int nraw, Rcpp::NumericMatrix errMat, 
@@ -21,7 +22,7 @@ B *run_dada(Raw **raws, int nraw, Rcpp::NumericMatrix errMat,
             double omegaA, double omegaP, bool detect_singletons, 
             int max_clust, double min_fold, int min_hamming, int min_abund, 
             bool use_quals, bool final_consensus, bool vectorized_alignment, bool multithread, bool verbose, 
-            int SSE, bool gapless, bool greedy);
+            int SSE, bool gapless, bool greedy, double indel_rate);
 
 //------------------------------------------------------------------
 // C interface to run DADA on the provided unique sequences/abundance pairs. 
@@ -44,7 +45,8 @@ Rcpp::List dada_uniques(std::vector< std::string > seqs, std::vector<int> abunda
                         bool verbose,
                         int SSE,
                         bool gapless,
-                        bool greedy) {
+                        bool greedy,
+                        double indel_rate) {
 
   unsigned int i, r, index, pos, nraw, maxlen, minlen;
   Raw *raw;
@@ -73,6 +75,7 @@ Rcpp::List dada_uniques(std::vector< std::string > seqs, std::vector<int> abunda
     }
   }
   // Check error matrix
+  if(indel_rate >= 1) { Rcpp::stop("INDEL_RATE must be < 1."); }
   if(err.nrow() != 16) {
     Rcpp::stop("Error matrix must have 16 rows.");
   }
@@ -97,7 +100,7 @@ Rcpp::List dada_uniques(std::vector< std::string > seqs, std::vector<int> abunda
     Rprintf("SSE2 not supported.\n");
     SSE = 0;
   } */
-  if(!X64) { SSE=0; }
+  if(!DADAS_SIMD) { SSE=0; } // DadaS: SSE2 on x86 or NEON on ARM (see kmers_simd.h)
   
   /********** CONSTRUCT RAWS *********/
   char seq[SEQLEN];
@@ -167,7 +170,7 @@ Rcpp::List dada_uniques(std::vector< std::string > seqs, std::vector<int> abunda
                    match, mismatch, gap, homo_gap, use_kmers, kdist_cutoff, band_size, 
                    omegaA, omegaP, detect_singletons,
                    max_clust, min_fold, min_hamming, min_abund, use_quals, final_consensus, 
-                   vectorized_alignment, multithread, verbose, SSE, gapless, greedy);
+                   vectorized_alignment, multithread, verbose, SSE, gapless, greedy, indel_rate);
 
   /********** MAKE OUTPUT *********/
   // Create subs for all the relevant alignments
@@ -299,12 +302,13 @@ B *run_dada(Raw **raws, int nraw, Rcpp::NumericMatrix errMat,
             double omegaA, double omegaP, bool detect_singletons,
             int max_clust, double min_fold, int min_hamming, int min_abund, 
             bool use_quals, bool final_consensus, bool vectorized_alignment, bool multithread, bool verbose, 
-            int SSE, bool gapless, bool greedy) {
+            int SSE, bool gapless, bool greedy, double indel_rate) {
   int newi=0, nshuffle = 0;
   bool shuffled = false;
 
   B *bb;
   bb = b_new(raws, nraw, omegaA, omegaP, use_quals); // New cluster with all sequences in 1 bi
+  bb->indel_rate = indel_rate; // DadaS: <= 0 reproduces DADA2 exactly (indels ignored)
   // Everyone gets aligned within the initial cluster, no KMER screen
   if(multithread) { b_compare_parallel(bb, 0, errMat, match, mismatch, gap_pen, homo_gap_pen, use_kmers, 1.0, band_size, vectorized_alignment, SSE, gapless, greedy, verbose); }
   else { b_compare(bb, 0, errMat, match, mismatch, gap_pen, homo_gap_pen, use_kmers, 1.0, band_size, vectorized_alignment, SSE, gapless, greedy, verbose); }

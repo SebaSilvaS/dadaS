@@ -1,17 +1,21 @@
-Package: dada2
+Package: dadaS
 Type: Package
-Title: Accurate, high-resolution sample inference from amplicon sequencing data
-Description: The dada2 package infers exact amplicon sequence variants (ASVs) from 
+Title: DadaS: a faster, more robust fork of DADA2 for amplicon sequence variant inference
+Description: DadaS is a fork of DADA2 1.36.0 that gives identical results with default options while
+    running faster (alignment, k-mer and p-value kernels, NEON SIMD on ARM), with reproducible
+    taxonomy bootstraps, thread-safe error handling, and an optional indel error model (INDEL_RATE).
+    From the original description: the dada2 package infers exact amplicon sequence variants (ASVs) from 
     high-throughput amplicon sequencing data, replacing the coarser and less accurate
     OTU clustering approach. The dada2 pipeline takes as input demultiplexed fastq 
     files, and outputs the sequence variants and their sample-wise abundances after 
     removing substitution and chimera errors. Taxonomic classification is available
     via a native implementation of the RDP naive Bayesian classifier, and species-level
     assignment to 16S rRNA gene fragments by exact matching.
-Version: 1.36.0
-Date: 2024-12-01
-Maintainer: Benjamin Callahan <benjamin.j.callahan@gmail.com>
-Author: Benjamin Callahan <benjamin.j.callahan@gmail.com>, Paul McMurdie, Susan Holmes
+Version: 1.36.0.9000
+Date: 2026-10-12
+Maintainer: Seba Silva <sgsilvas96@gmail.com>
+Author: Benjamin Callahan [aut] (original DADA2 author), Paul McMurdie [aut] (DADA2),
+    Susan Holmes [aut] (DADA2), Seba Silva [aut, cre] (DadaS modifications)
 License: LGPL-2
 LazyLoad: yes
 Depends:
@@ -29,6 +33,8 @@ Imports:
     XVector (>= 0.16.0),
     BiocGenerics (>= 0.22.0)
 Suggests:
+    dada2,
+    testthat (>= 3.0.0),
     BiocStyle,
     knitr,
     rmarkdown
@@ -49,6 +55,7 @@ Collate:
     'dada.R'
     'errorModels.R'
     'filter.R'
+    'indels.R'
     'misc.R'
     'multiSample.R'
     'paired.R'

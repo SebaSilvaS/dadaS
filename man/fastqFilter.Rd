@@ -118,7 +118,7 @@ to a new fastq file (also can be compressed). Several functions in the \code{Sho
 package are leveraged to do this filtering.
 }
 \examples{
-testFastq = system.file("extdata", "sam1F.fastq.gz", package="dada2")
+testFastq = system.file("extdata", "sam1F.fastq.gz", package="dadaS")
 filtFastq <- tempfile(fileext=".fastq.gz")
 fastqFilter(testFastq, filtFastq, maxN=0, maxEE=2)
 fastqFilter(testFastq, filtFastq, trimLeft=10, truncLen=200, maxEE=2, verbose=TRUE)

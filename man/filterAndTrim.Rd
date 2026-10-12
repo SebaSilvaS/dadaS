@@ -177,8 +177,8 @@ functionality. If errors arise, it is recommended to re-run without multithreadi
 troubleshoot the issue.
 }
 \examples{
-testFastqs = c(system.file("extdata", "sam1F.fastq.gz", package="dada2"), 
-               system.file("extdata", "sam2F.fastq.gz", package="dada2"))
+testFastqs = c(system.file("extdata", "sam1F.fastq.gz", package="dadaS"), 
+               system.file("extdata", "sam2F.fastq.gz", package="dadaS"))
 filtFastqs <- c(tempfile(fileext=".fastq.gz"), tempfile(fileext=".fastq.gz"))
 filterAndTrim(testFastqs, filtFastqs, maxN=0, maxEE=2, verbose=TRUE)
 filterAndTrim(testFastqs, filtFastqs, truncQ=2, truncLen=200, rm.phix=TRUE, rm.lowcomplex=8)

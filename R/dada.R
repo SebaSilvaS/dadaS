@@ -22,6 +22,7 @@ assign("HOMOPOLYMER_GAP_PENALTY", NULL, envir = dada_opts)
 assign("SSE", 2, envir = dada_opts)
 assign("GAPLESS", TRUE, envir=dada_opts)
 assign("GREEDY", TRUE, envir=dada_opts)
+assign("INDEL_RATE", 0, envir=dada_opts) # DadaS: per-event indel error rate; 0 = ignore indels (DADA2 behavior)
 assign("PSEUDO_PREVALENCE", 2, envir=dada_opts)
 assign("PSEUDO_ABUNDANCE", Inf, envir=dada_opts)
 # assign("FINAL_CONSENSUS", FALSE, envir=dada_opts) # NON-FUNCTIONAL AT THE MOMENT
@@ -206,6 +207,8 @@ dada <- function(derep,
   
   # Validate OMEGA parameters
   if(opts$OMEGA_A < 0 || opts$OMEGA_A >= 1) stop("OMEGA_A must be between zero and one.")
+  if(is.null(opts$INDEL_RATE)) opts$INDEL_RATE <- 0 # DadaS
+  if(!is.numeric(opts$INDEL_RATE) || opts$INDEL_RATE < 0 || opts$INDEL_RATE >= 1) stop("INDEL_RATE must be in [0, 1).")
   if(opts$OMEGA_P < 0 || opts$OMEGA_P >= 1) stop("OMEGA_P must be between zero and one.")
   if(opts$OMEGA_P < opts$OMEGA_A && length(priors) > 0) warning("OMEGA_P should generally be larger than OMEGA_A.")
   if(opts$OMEGA_C > 1e-10 && selfConsist) warning("Strict error correction (OMEGA_C < 1e-10) is not recommended when learning error rates.")
@@ -277,11 +280,13 @@ dada <- function(derep,
         if(nrow(drpi$quals) != length(drpi$uniques)) {
           stop("derep$quals matrices must have one row for each derep$unique sequence.")
         }
-        if(any(sapply(names(drpi$uniques), nchar) > ncol(drpi$quals))) { ###ITS
+        # DadaS: vectorized validation (previously a row-by-row sapply, ~20% of dada() run time)
+        lens <- nchar(names(drpi$uniques))
+        if(any(lens > ncol(drpi$quals))) { ###ITS
           stop("derep$quals matrices must have as many columns as the length of the derep$unique sequences.")
         }
-        if(any(sapply(seq(nrow(drpi$quals)), 
-                      function(row) any(is.na(drpi$quals[row,1:nchar(names(drpi$uniques)[[row]])]))))) { ###ITS
+        # NA within positions 1..length of each sequence (lens recycles by row in column-major order)
+        if(anyNA(drpi$quals[col(drpi$quals) <= lens])) { ###ITS
           stop("NAs in derep$quals matrix. Check that all input sequences had valid associated qualities assigned.")
         }
         if(min(drpi$quals, na.rm=TRUE) < 0) {
@@ -349,7 +354,8 @@ dada <- function(derep,
                           (verbose>=2),
                           opts[["SSE"]],
                           opts[["GAPLESS"]],
-                          opts[["GREEDY"]])
+                          opts[["GREEDY"]],
+                          opts[["INDEL_RATE"]])
       
       # Augment the returns
       res$clustering$sequence <- as.character(res$clustering$sequence)
@@ -554,6 +560,13 @@ dada <- function(derep,
 #'  on via this option. If TRUE, unique sequences with reads less than those expected to be generated
 #'  by resequencing just the central unique in their partition are "locked" to that partition.
 #'  Modest (~30\%) speedup, and almost no impact on output. Default is TRUE.
+#' 
+#' INDEL_RATE (DadaS): The per-event error rate of internal indels. DADA2 ignores indels when computing
+#'  the probability that a sequence was produced by errors from its partition center, so variants that
+#'  differ only by indels are never split. If INDEL_RATE > 0, each internal indel event (a run of gap
+#'  columns, terminal gaps excluded) multiplies that probability by INDEL_RATE and counts as one
+#'  difference in the hamming distance. Default is 0 (identical to DADA2). See \code{\link{estimateIndelRate}}
+#'  to estimate a value from the data; forward and reverse reads usually need different values.
 #' 
 #' **New Partition Conditions**
 #' 

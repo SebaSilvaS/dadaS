@@ -68,8 +68,8 @@ replicates. Properly formatted reference files for several popular taxonomic dat
 are available \url{http://benjjneb.github.io/dada2/training.html}
 }
 \examples{
-seqs <- getSequences(system.file("extdata", "example_seqs.fa", package="dada2"))
-training_fasta <- system.file("extdata", "example_train_set.fa.gz", package="dada2")
+seqs <- getSequences(system.file("extdata", "example_seqs.fa", package="dadaS"))
+training_fasta <- system.file("extdata", "example_train_set.fa.gz", package="dadaS")
 taxa <- assignTaxonomy(seqs, training_fasta)
 taxa80 <- assignTaxonomy(seqs, training_fasta, minBoot=80, multithread=2)
 

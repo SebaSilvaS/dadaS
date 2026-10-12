@@ -1,2 +1,5 @@
 ^.*\.Rproj$
 ^\.Rproj\.user$
+^workflow$
+^REVIEW\.md$
+^tests/testthat/_snaps$

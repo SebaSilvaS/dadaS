@@ -9,6 +9,8 @@
 #include <RcppParallel.h>
 #include <unordered_map>
 #include <unordered_set>
+#include <stdexcept>
+#include <cstdarg>
 //#include <gsl/gsl_cdf.h>
 
 // Define a variable that is true of SSE2 supported
@@ -33,6 +35,20 @@
 #define CACHE_STRIDE 64 // up to 64kb of distance between compared kmer8 vectors
 
 
+/* DadaS: thread-safe error.
+   Rcpp::stop calls the R API (it builds an R object with the call trace), which is NOT safe outside the
+   main thread: an error inside an RcppParallel::Worker could crash R.
+   dada_stop only throws a std::runtime_error; TBB propagates it to the thread that called parallelFor and
+   Rcpp turns it into an ordinary R error. On the main thread it behaves like Rcpp::stop. */
+[[noreturn]] inline void dada_stop(const char *fmt, ...) {
+  char buf[512];
+  va_list args;
+  va_start(args, fmt);
+  vsnprintf(buf, sizeof(buf), fmt, args);
+  va_end(args);
+  throw std::runtime_error(buf);
+}
+
 /* -------------------------------------------
    -------- STRUCTS OBJECTS STRUCTS ----------
    ------------------------------------------- */
@@ -52,6 +68,7 @@ typedef struct {
  Note: positions will be 0-indexed in the alignment */
 typedef struct {
   unsigned int nsubs;   // number of substitions
+  unsigned int nindel;  // DadaS: number of internal indel events (gap runs, terminal gaps excluded)
   unsigned int len0;    // The length of the ref seq
   uint16_t *map;    // map of the sequence position in the ref seq to that in the aligned seq
   uint16_t *pos;    // sequence position of the substitition: index in the reference seq
@@ -115,6 +132,7 @@ typedef struct {
   double omegaA;
   double omegaP;
   bool use_quals;
+  double indel_rate;  // DadaS: per-event indel error rate; <= 0 = indels ignored (DADA2 behavior)
   double *lams;
   double *cdf;
   size_t nlam;

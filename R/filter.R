@@ -73,7 +73,7 @@
 #' @examples
 #' F27 <- "AGRGTTYGATYMTGGCTCAG"
 #' R1492 <- "RGYTACCTTGTTACGACTT"
-#' fn <- system.file("extdata", "samPBprimers.fastq.gz", package="dada2")
+#' fn <- system.file("extdata", "samPBprimers.fastq.gz", package="dadaS")
 #' fn.noprime <- tempfile(fileext=".fastq.gz")
 #' removePrimers(fn, fn.noprime, primer.fwd=F27, primer.rev=rc(R1492), orient=TRUE, verbose=TRUE)
 #' 
@@ -393,8 +393,8 @@ filt.print <- function(inseqs, outseqs) {
 #' @export
 #' 
 #' @examples
-#' testFastqs = c(system.file("extdata", "sam1F.fastq.gz", package="dada2"), 
-#'                system.file("extdata", "sam2F.fastq.gz", package="dada2"))
+#' testFastqs = c(system.file("extdata", "sam1F.fastq.gz", package="dadaS"), 
+#'                system.file("extdata", "sam2F.fastq.gz", package="dadaS"))
 #' filtFastqs <- c(tempfile(fileext=".fastq.gz"), tempfile(fileext=".fastq.gz"))
 #' filterAndTrim(testFastqs, filtFastqs, maxN=0, maxEE=2, verbose=TRUE)
 #' filterAndTrim(testFastqs, filtFastqs, truncQ=2, truncLen=200, rm.phix=TRUE, rm.lowcomplex=8)
@@ -605,7 +605,7 @@ filterAndTrim <- function(fwd, filt, rev=NULL, filt.rev=NULL, compress=TRUE,
 #' @importFrom methods as
 #' 
 #' @examples
-#' testFastq = system.file("extdata", "sam1F.fastq.gz", package="dada2")
+#' testFastq = system.file("extdata", "sam1F.fastq.gz", package="dadaS")
 #' filtFastq <- tempfile(fileext=".fastq.gz")
 #' fastqFilter(testFastq, filtFastq, maxN=0, maxEE=2)
 #' fastqFilter(testFastq, filtFastq, trimLeft=10, truncLen=200, maxEE=2, verbose=TRUE)
@@ -867,8 +867,8 @@ fastqFilter <- function(fn, fout, truncQ = 2, truncLen = 0, maxLen = Inf, minLen
 #' 
 #' @examples
 #'
-#' testFastqF = system.file("extdata", "sam1F.fastq.gz", package="dada2")
-#' testFastqR = system.file("extdata", "sam1R.fastq.gz", package="dada2")
+#' testFastqF = system.file("extdata", "sam1F.fastq.gz", package="dadaS")
+#' testFastqR = system.file("extdata", "sam1R.fastq.gz", package="dadaS")
 #' filtFastqF <- tempfile(fileext=".fastq.gz")
 #' filtFastqR <- tempfile(fileext=".fastq.gz")
 #' fastqPairedFilter(c(testFastqF, testFastqR), c(filtFastqF, filtFastqR), maxN=0, maxEE=2)
@@ -1172,14 +1172,14 @@ fastqPairedFilter <- function(fn, fout, maxN = c(0,0), truncQ = c(2,2), truncLen
 #' @importFrom methods as
 #' 
 #' @examples
-#' derep1 = derepFastq(system.file("extdata", "sam1F.fastq.gz", package="dada2"))
+#' derep1 = derepFastq(system.file("extdata", "sam1F.fastq.gz", package="dadaS"))
 #' sqs1 <- getSequences(derep1)
 #' is.phi <- isPhiX(sqs1)
 #' is.phi <- isPhiX(sqs1, wordSize=20,  minMatches=1)
 #' 
 isPhiX <- function(seqs, wordSize=16, minMatches=2, nonOverlapping=TRUE, ...) {
   seqs <- getSequences(seqs)
-  sq.phix <- as(sread(readFasta(system.file("extdata", "phix_genome.fa", package="dada2"))), "character")
+  sq.phix <- as(sread(readFasta(system.file("extdata", "phix_genome.fa", package="dadaS"))), "character")
   rc.phix <- rc(sq.phix)
   hits <- C_matchRef(seqs, sq.phix, wordSize, nonOverlapping)
   hits.rc <- C_matchRef(seqs, rc.phix, wordSize, nonOverlapping)

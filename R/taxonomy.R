@@ -57,8 +57,8 @@
 #' @importFrom ShortRead id
 #' 
 #' @examples
-#' seqs <- getSequences(system.file("extdata", "example_seqs.fa", package="dada2"))
-#' training_fasta <- system.file("extdata", "example_train_set.fa.gz", package="dada2")
+#' seqs <- getSequences(system.file("extdata", "example_seqs.fa", package="dadaS"))
+#' training_fasta <- system.file("extdata", "example_train_set.fa.gz", package="dadaS")
 #' taxa <- assignTaxonomy(seqs, training_fasta)
 #' taxa80 <- assignTaxonomy(seqs, training_fasta, minBoot=80, multithread=2)
 #' 
@@ -233,8 +233,8 @@ matchGenera <- function(gen.tax, gen.binom, split.glyph="/") {
 #' @importFrom methods as
 #' 
 #' @examples
-#' seqs <- getSequences(system.file("extdata", "example_seqs.fa", package="dada2"))
-#' species_fasta <- system.file("extdata", "example_species_assignment.fa.gz", package="dada2")
+#' seqs <- getSequences(system.file("extdata", "example_seqs.fa", package="dadaS"))
+#' species_fasta <- system.file("extdata", "example_species_assignment.fa.gz", package="dadaS")
 #' spec <- assignSpecies(seqs, species_fasta)
 #' 
 assignSpecies <- function(seqs, refFasta, allowMultiple=FALSE, tryRC=FALSE, n=2000, verbose=FALSE) {
@@ -337,10 +337,10 @@ assignSpecies <- function(seqs, refFasta, allowMultiple=FALSE, tryRC=FALSE, n=20
 #' 
 #' @examples
 #' 
-#' seqs <- getSequences(system.file("extdata", "example_seqs.fa", package="dada2"))
-#' training_fasta <- system.file("extdata", "example_train_set.fa.gz", package="dada2")
+#' seqs <- getSequences(system.file("extdata", "example_seqs.fa", package="dadaS"))
+#' training_fasta <- system.file("extdata", "example_train_set.fa.gz", package="dadaS")
 #' taxa <- assignTaxonomy(seqs, training_fasta)
-#' species_fasta <- system.file("extdata", "example_species_assignment.fa.gz", package="dada2")
+#' species_fasta <- system.file("extdata", "example_species_assignment.fa.gz", package="dadaS")
 #' taxa.spec <- addSpecies(taxa, species_fasta)
 #' taxa.spec.multi <- addSpecies(taxa, species_fasta, allowMultiple=TRUE)
 #' 
@@ -364,17 +364,17 @@ addSpecies <- function(taxtab, refFasta, allowMultiple=FALSE, tryRC=FALSE, n=200
 #' 
 #' ## RDP Trainset 19
 #' path <- "~/tax/rdp/v19"
-#' dada2:::makeTaxonomyFasta_RDP(file.path(path, "trainset19_072023_speciesrank.fa"), 
+#' dadaS:::makeTaxonomyFasta_RDP(file.path(path, "trainset19_072023_speciesrank.fa"), 
 #'                               file.path(path, "trainset19_db_taxid.txt"), 
 #'                               "~/Desktop/rdp_19_toGenus_trainset.fa.gz", include.species=FALSE,
 #'                               compress=TRUE)
-#' dada2:::tax.check("~/Desktop/rdp_19_toGenus_trainset.fa.gz")
+#' dadaS:::tax.check("~/Desktop/rdp_19_toGenus_trainset.fa.gz")
 #' 
-#' dada2:::makeTaxonomyFasta_RDP(file.path(path, "trainset19_072023_speciesrank.fa"), 
+#' dadaS:::makeTaxonomyFasta_RDP(file.path(path, "trainset19_072023_speciesrank.fa"), 
 #'                               file.path(path, "trainset19_db_taxid.txt"), 
 #'                               "~/Desktop/rdp_19_toSpecies_trainset.fa.gz", include.species=TRUE,
 #'                               compress=TRUE)
-#' dada2:::tax.check("~/Desktop/rdp_19_toSpecies_trainset.fa.gz")
+#' dadaS:::tax.check("~/Desktop/rdp_19_toSpecies_trainset.fa.gz")
 #' 
 #' @importFrom ShortRead readFasta
 #' @importFrom ShortRead writeFasta
@@ -437,11 +437,11 @@ makeTaxonomyFasta_RDP <- function(fin, fdb, fout, include.species=FALSE, compres
 #' ## RDP Trainset 18/Release 11.5
 #' ## The RDP documentation does not make clear whether the updates to the taxonomy from training set release 18 were
 #' ## propagated to the current Bacterial alignment.
-#' dada2:::makeSpeciesFasta_RDP("~/Desktop/RDP/current_Bacteria_unaligned.fa", "~/tax/rdp_species_assignment_18.fa.gz")
-#' dada2:::tax.check("~/tax/rdp_species_assignment_18.fa.gz", mode="species")
+#' dadaS:::makeSpeciesFasta_RDP("~/Desktop/RDP/current_Bacteria_unaligned.fa", "~/tax/rdp_species_assignment_18.fa.gz")
+#' dadaS:::tax.check("~/tax/rdp_species_assignment_18.fa.gz", mode="species")
 #' 
 #' ## RDP Trainset 16/Release 11.5
-#' dada2:::makeSpeciesFasta_RDP("~/Desktop/RDP/current_Bacteria_unaligned.fa", "~/tax/rdp_species_assignment_16.fa.gz")
+#' dadaS:::makeSpeciesFasta_RDP("~/Desktop/RDP/current_Bacteria_unaligned.fa", "~/tax/rdp_species_assignment_16.fa.gz")
 #' 
 #' @importFrom ShortRead readFasta
 #' @importFrom ShortRead writeFasta
@@ -513,15 +513,15 @@ makeSpeciesFasta_RDP <- function(fin, fout, compress=TRUE) {
 #' 
 #' ## Silva release v138.2
 #' path <- "~/tax/Silva/v138_2"
-#' dada2:::makeTaxonomyFasta_SilvaNR(file.path(path, "SILVA_138.2_SSURef_NR99_tax_silva.fasta.gz"), 
+#' dadaS:::makeTaxonomyFasta_SilvaNR(file.path(path, "SILVA_138.2_SSURef_NR99_tax_silva.fasta.gz"), 
 #'     file.path(path, "tax_slv_ssu_138.2.txt"), 
 #'     "~/Desktop/silva_nr99_v138.2_toGenus_trainset.fa.gz")
-#' dada2:::tax.check("~/Desktop/silva_nr99_v138.2_toGenus_trainset.fa.gz")
+#' dadaS:::tax.check("~/Desktop/silva_nr99_v138.2_toGenus_trainset.fa.gz")
 #'     
-#' dada2:::makeTaxonomyFasta_SilvaNR(file.path(path, "SILVA_138.2_SSURef_NR99_tax_silva.fasta.gz"), 
+#' dadaS:::makeTaxonomyFasta_SilvaNR(file.path(path, "SILVA_138.2_SSURef_NR99_tax_silva.fasta.gz"), 
 #'     file.path(path, "tax_slv_ssu_138.2.txt"), 
 #'     include.species=TRUE, "~/silva_nr99_v138.2_toSpecies_trainset.fa.gz")
-#' dada2:::tax.check("~/Desktop/silva_nr99_v138.2_toSpecies_trainset.fa.gz")
+#' dadaS:::tax.check("~/Desktop/silva_nr99_v138.2_toSpecies_trainset.fa.gz")
 #' 
 #' @importFrom ShortRead readFasta
 #' @importFrom ShortRead writeFasta
@@ -609,7 +609,7 @@ makeTaxonomyFasta_SilvaNR <- function(fin, ftax, fout, include.species=FALSE, co
     binom <- cbind(sapply(strsplit(binom, "\\s"), `[`, 1),
                    sapply(strsplit(binom, "\\s"), `[`, 2))
     # Identify binomials that match the curated genus
-    gen.match <- mapply(dada2:::matchGenera, genus, binom[,1], split.glyph="-")
+    gen.match <- mapply(dadaS:::matchGenera, genus, binom[,1], split.glyph="-")
     # Identify some other types of invalid species names
     is.NA <- apply(binom, 1, function(x) any(is.na(x)))
     is.sp <- grepl("sp\\.", binom[,2]) # "sp." is not a valid species name, just a generic
@@ -655,7 +655,7 @@ makeTaxonomyFasta_SilvaNR <- function(fin, ftax, fout, include.species=FALSE, co
 #' from the SILVA_[VERSION]_SSURef_tax_silva.fasta file (NOT the NR99 file).
 #' 
 #' ## Silva release v138.2
-#' dada2:::makeSpeciesFasta_Silva("~/tax/silva/v138_2/SILVA_138.2_SSURef_tax_silva.fasta.gz", 
+#' dadaS:::makeSpeciesFasta_Silva("~/tax/silva/v138_2/SILVA_138.2_SSURef_tax_silva.fasta.gz", 
 #'     "~/Desktop/silva_v138.2_assignSpecies.fa.gz")
 #' 
 #' Output: 352047 sequences with genus/species binomial annotation output.
@@ -742,12 +742,12 @@ makeSpeciesFasta_Silva <- function(fin, fout, compress=TRUE) {
 #' txfn <- "b7c3e691-ea51-4547-94dd-f79f49e41a36/data/taxonomy.tsv"
 #' 
 #' fn.out <- "~/Desktop/gg2_2024_09_toGenus_trainset.fa.gz"
-#' dada2:::makeTaxonomyFasta_GG2(fn, txfn, fn.out, include.species=FALSE, compress=TRUE)
-#' dada2:::tax.check(fn.out)
+#' dadaS:::makeTaxonomyFasta_GG2(fn, txfn, fn.out, include.species=FALSE, compress=TRUE)
+#' dadaS:::tax.check(fn.out)
 #' 
 #' fn.out.spc <- "~/Desktop/gg2_2024_09_toSpecies_trainset.fa.gz"
-#' dada2:::makeTaxonomyFasta_GG2(fn, txfn, fn.out.spc, include.species=TRUE, compress=TRUE)
-#' dada2:::tax.check(fn.out.spc)
+#' dadaS:::makeTaxonomyFasta_GG2(fn, txfn, fn.out.spc, include.species=TRUE, compress=TRUE)
+#' dadaS:::tax.check(fn.out.spc)
 #' 
 #' @importFrom ShortRead readFasta
 #' @importFrom ShortRead writeFasta
@@ -826,13 +826,13 @@ makeTaxonomyFasta_GG2 <- function(fn, txfn, fout, include.species=FALSE, output.
 ## This uses the "ten_16s.100.fa" originally from Robert Edgar's taxonomy testing page: https://drive5.com/taxxi/doc/fasta_index.html
 ## This file is relicensed here under the DADA2 LGPL2 license on permission from Robert Edgar.
 ## Test file only contains taxonomy assigned to genus level (level=6), no species information
-tax.check <- function(fn.tax, fn.test=system.file("extdata", "ten_16s.100.fa.gz", package="dada2"), nseq=100, level=6, mode="taxonomy") {
+tax.check <- function(fn.tax, fn.test=system.file("extdata", "ten_16s.100.fa.gz", package="dadaS"), nseq=100, level=6, mode="taxonomy") {
   sq.test <- sample(getSequences(fn.test), nseq)
   if(mode == "taxonomy") {
     tax <- assignTaxonomy(sq.test, fn.tax, multi=TRUE)
     rval <- cbind(unname(tax[,level]), sapply(strsplit(names(sq.test), ":"), `[`, level+1))
   } else if (mode=="species") {
-    sq.acgt <- sq.test[dada2:::C_isACGT(sq.test)]
+    sq.acgt <- sq.test[dadaS:::C_isACGT(sq.test)]
     spc <- assignSpecies(sq.acgt, fn.tax)
     rval <- cbind(unname(spc[,level-5]), sapply(strsplit(names(sq.acgt), ":"), `[`, level+1))
   } else { stop("Valid modes are taxonomy or species.") }

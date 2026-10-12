@@ -9,7 +9,7 @@ makeSpeciesFasta_Silva(fin, fout, compress = TRUE)
 }
 \description{
 ## Silva release v138.2
-dada2:::makeSpeciesFasta_Silva("~/tax/silva/v138_2/SILVA_138.2_SSURef_tax_silva.fasta.gz", 
+dadaS:::makeSpeciesFasta_Silva("~/tax/silva/v138_2/SILVA_138.2_SSURef_tax_silva.fasta.gz", 
     "~/Desktop/silva_v138.2_assignSpecies.fa.gz")
 }
 \details{

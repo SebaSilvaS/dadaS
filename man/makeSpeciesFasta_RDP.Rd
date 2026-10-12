@@ -15,10 +15,10 @@ AS A RESULT, THIS OUTPUT IS NOT CURRENTLY BEING MAINTAINED
 ## RDP Trainset 18/Release 11.5
 ## The RDP documentation does not make clear whether the updates to the taxonomy from training set release 18 were
 ## propagated to the current Bacterial alignment.
-dada2:::makeSpeciesFasta_RDP("~/Desktop/RDP/current_Bacteria_unaligned.fa", "~/tax/rdp_species_assignment_18.fa.gz")
-dada2:::tax.check("~/tax/rdp_species_assignment_18.fa.gz", mode="species")
+dadaS:::makeSpeciesFasta_RDP("~/Desktop/RDP/current_Bacteria_unaligned.fa", "~/tax/rdp_species_assignment_18.fa.gz")
+dadaS:::tax.check("~/tax/rdp_species_assignment_18.fa.gz", mode="species")
 
 ## RDP Trainset 16/Release 11.5
-dada2:::makeSpeciesFasta_RDP("~/Desktop/RDP/current_Bacteria_unaligned.fa", "~/tax/rdp_species_assignment_16.fa.gz")
+dadaS:::makeSpeciesFasta_RDP("~/Desktop/RDP/current_Bacteria_unaligned.fa", "~/tax/rdp_species_assignment_16.fa.gz")
 }
 \keyword{internal}

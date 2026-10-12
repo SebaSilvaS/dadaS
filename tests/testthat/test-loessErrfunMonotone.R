@@ -1,0 +1,10 @@
+test_that("loessErrfunMonotone returns a valid, non-increasing error matrix", {
+  drp <- derepFastq(system.file("extdata", "sam1F.fastq.gz", package = "dadaS"))
+  dd <- dada(drp, err = tperr1, verbose = 0)
+  err <- loessErrfunMonotone(dd$trans)
+  expect_equal(dim(err), c(16L, ncol(dd$trans)))
+  expect_true(all(err >= 0 & err <= 1))
+  expect_equal(unname(colSums(err[1:4, ])), rep(1, ncol(err)))
+  offdiag <- !(rownames(err) %in% c("A2A", "C2C", "G2G", "T2T"))
+  expect_true(all(apply(err[offdiag, ], 1, function(x) all(diff(x) <= 1e-12))))
+})

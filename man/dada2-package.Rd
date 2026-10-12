@@ -2,7 +2,8 @@
 % Please edit documentation in R/allPackage.R
 \docType{package}
 \name{dada2-package}
-\alias{dada2}
+\alias{dadaS}
+\alias{dadaS-package}
 \alias{dada2-package}
 \title{DADA2 package}
 \description{

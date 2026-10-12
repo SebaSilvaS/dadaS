@@ -603,3 +603,54 @@ NULL
 #'  
 #' @name errBalancedR
 NULL
+
+#' Monotone loess error function for binned quality scores (DadaS)
+#'
+#' A variant of \code{\link{loessErrfun}} often used with NovaSeq/NextSeq data, whose quality
+#' scores are binned into a few values. It fits the loess with weights \code{log10(total)} instead of
+#' \code{total}, \code{span = 2} and \code{degree = 1}, and then forces the error rate to be
+#' non-increasing with quality (monotone). This follows the community proposals discussed in
+#' https://github.com/benjjneb/dada2/issues/1307.
+#'
+#' Caution: with binned qualities, the average quality of each unique sequence (as computed by
+#' \code{derepFastq}) is strongly coupled with its abundance: rare uniques sit at the top bin. Forcing
+#' monotonicity can therefore underestimate the error rate at the highest quality, and in our tests
+#' on sediment data it produced ~29\% more ASVs than \code{loessErrfun}, part of them likely noise.
+#' See \code{REVIEW.md} for the evaluation.
+#'
+#' @param trans A matrix of observed transition counts (16 rows x quality scores), as in
+#'   \code{dada()$trans}.
+#' @return A matrix of error rates (16 rows x quality scores), usable as \code{err}.
+#' @seealso \code{\link{loessErrfun}}, \code{\link{makeBinnedQualErrfun}}
+#' @export
+loessErrfunMonotone <- function(trans) {
+  qq <- as.numeric(colnames(trans))
+  est <- matrix(0, nrow = 0, ncol = length(qq))
+  for (nti in c("A", "C", "G", "T")) {
+    for (ntj in c("A", "C", "G", "T")) {
+      if (nti != ntj) {
+        errs <- trans[paste0(nti, "2", ntj), ]
+        tot <- colSums(trans[paste0(nti, "2", c("A", "C", "G", "T")), ])
+        rlogp <- log10((errs + 1) / tot)
+        rlogp[is.infinite(rlogp)] <- NA
+        df <- data.frame(q = qq, errs = errs, tot = tot, rlogp = rlogp)
+        mod.lo <- loess(rlogp ~ q, df, weights = log10(tot + 1), span = 2, degree = 1)
+        pred <- predict(mod.lo, qq)
+        maxrli <- max(which(!is.na(pred))); minrli <- min(which(!is.na(pred)))
+        pred[seq_along(pred) > maxrli] <- pred[[maxrli]]
+        pred[seq_along(pred) < minrli] <- pred[[minrli]]
+        pred <- cummin(pred)   # monotone: the rate never increases with quality
+        est <- rbind(est, 10^pred)
+      }
+    }
+  }
+  est[est > 0.25] <- 0.25
+  est[est < 1e-7] <- 1e-7
+  err <- rbind(1 - colSums(est[1:3, ]), est[1:3, ],
+               est[4, ], 1 - colSums(est[4:6, ]), est[5:6, ],
+               est[7:8, ], 1 - colSums(est[7:9, ]), est[9, ],
+               est[10:12, ], 1 - colSums(est[10:12, ]))
+  rownames(err) <- paste0(rep(c("A", "C", "G", "T"), each = 4), "2", c("A", "C", "G", "T"))
+  colnames(err) <- colnames(trans)
+  err
+}
