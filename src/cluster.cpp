@@ -35,10 +35,10 @@ void b_compare(B *b, unsigned int i, Rcpp::NumericMatrix errMat,
     center->kmer8 = b->raw[cached]->kmer8;
   } */
 
-  // DadaS: copia de la matriz de error en un arreglo C, una vez por llamada (como la versión paralela).
-  // Antes compute_lambda recibía la Rcpp::NumericMatrix por valor en CADA comparación (protección en el
-  // heap de R cada vez): el camino de un hilo era más lento que el paralelo con 1 hilo. Mismo producto,
-  // mismo orden: λ idéntico.
+  // DadaS: copy the error matrix into a plain C array once per call (as the parallel path already does).
+  // Previously compute_lambda received the Rcpp::NumericMatrix by value on EVERY comparison (an R-heap
+  // protect each time), so the serial path was slower than the parallel path with 1 thread. Same product,
+  // same order of operations: identical lambda.
   unsigned int ncol = errMat.ncol();
   std::vector<double> err_mat(16 * ncol);
   for(unsigned int row=0; row<16; row++) {
@@ -75,7 +75,7 @@ void b_compare(B *b, unsigned int i, Rcpp::NumericMatrix errMat,
     
     // Calculate lambda for that sub
     lambda = compute_lambda_ts(raw, sub, ncol, err_mat.data(), b->use_quals);
-    // DadaS (opcional): cada indel interno es un evento de error con probabilidad indel_rate
+    // DadaS (optional): each internal indel event is an error with probability indel_rate
     if(b->indel_rate > 0 && sub && sub->nindel > 0) { lambda *= pow(b->indel_rate, (double) sub->nindel); }
 
     // Store lambda and set self
@@ -89,7 +89,7 @@ void b_compare(B *b, unsigned int i, Rcpp::NumericMatrix errMat,
       comp.i = i;
       comp.index = index;
       comp.lambda = lambda;
-      comp.hamming = sub ? sub->nsubs + (b->indel_rate > 0 ? sub->nindel : 0) : (unsigned int) -1; // DadaS: sub puede ser NULL (antes: puntero nulo); indels cuentan solo con indel_rate > 0
+      comp.hamming = sub ? sub->nsubs + (b->indel_rate > 0 ? sub->nindel : 0) : (unsigned int) -1; // DadaS: sub can be NULL (previously dereferenced); indels count only when indel_rate > 0
       b->bi[i]->comp.push_back(comp);
       if(i==0 || raw == b->bi[i]->center) { // Update on init (i=0) or if the center (as b_bud doesn't update raw->comp)
         raw->comp = comp;
@@ -148,7 +148,7 @@ struct CompareParallel : public RcppParallel::Worker
       output[index].i = i;
       output[index].index = index;
       output[index].lambda = compute_lambda_ts(raw, sub, ncol, err_mat, b->use_quals);
-      // DadaS (opcional): cada indel interno es un evento de error con probabilidad indel_rate
+      // DadaS (optional): each internal indel event is an error with probability indel_rate
       if(b->indel_rate > 0 && sub && sub->nindel > 0) { output[index].lambda *= pow(b->indel_rate, (double) sub->nindel); }
       if(sub) {
         output[index].hamming = sub->nsubs + (b->indel_rate > 0 ? sub->nindel : 0);

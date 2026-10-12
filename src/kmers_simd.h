@@ -1,14 +1,13 @@
-// DadaS: distancias de k-mers con SIMD para x86 (SSE2) y ARM (NEON), más la versión escalar.
+// DadaS: k-mer distances with SIMD for x86 (SSE2) and ARM (NEON), plus the scalar reference.
 //
-// Este archivo no depende de R ni de Rcpp, para poder compilarlo también en el banco de pruebas
-// (workflow/bench/). Lo incluye kmers.cpp.
+// This header does not depend on R or Rcpp, so it can also be compiled in the micro-benchmark
+// (workflow/bench/). It is included by kmers.cpp.
 //
-// En DADA2 las versiones vectorizadas solo existían para x86_64; en ARM (Apple Silicon, Graviton,
-// servidores ARM) se usaba la versión escalar. Aquí las versiones NEON replican exactamente la
-// aritmética de las SSE2 (mismos carriles, mismas sumas saturadas o con desborde, misma detección
-// de desborde), así que dan resultados idénticos bit a bit.
+// In DADA2 the vectorized versions existed only for x86_64; on ARM (Apple Silicon, Graviton, ARM
+// servers) the scalar version was used. The NEON versions here replicate the SSE2 arithmetic exactly
+// (same lanes, same saturating or wrapping adds, same overflow detection), so results are bit-identical.
 //
-// DADAS_SIMD es 1 si hay una implementación vectorizada para esta arquitectura.
+// DADAS_SIMD is 1 when a vectorized implementation exists for the target architecture.
 #ifndef DADAS_KMERS_SIMD_H
 #define DADAS_KMERS_SIMD_H
 
@@ -25,7 +24,7 @@
 #define DADAS_SIMD 0
 #endif
 
-/* ---------- Escalar (referencia, cualquier arquitectura) ---------- */
+/* ---------- Scalar (reference, any architecture) ---------- */
 
 static inline double kmer_dist_scalar(const uint16_t *kv1, int len1, const uint16_t *kv2, int len2, int k) {
   int n_kmer = 1 << (2*k); // 4^k kmers
@@ -50,11 +49,11 @@ static inline double kord_dist_scalar(const uint16_t *kord1, int len1, const uin
 
 #if DADAS_SIMD
 
-/* ---------- Mínimos de vectores de conteo de k-mers, 16 bits ---------- */
-// 8 carriles de 16 bits, suma con desborde (igual que _mm_add_epi16); los conteos son < 2^15,
-// así que el mínimo con o sin signo es el mismo.
+/* ---------- Minima of k-mer count vectors, 16 bit ---------- */
+// 8 lanes of 16 bits, wrapping add (as _mm_add_epi16); counts are < 2^15, so signed and unsigned
+// minima are the same.
 static inline double kmer_dist_simd16(const uint16_t *kv1, int len1, const uint16_t *kv2, int len2, int k) {
-  size_t n_kmer = 1 << (2*k); // asume n_kmer divisible por 8
+  size_t n_kmer = 1 << (2*k); // assumes n_kmer divisible by 8
   uint16_t dst[8];
 #if defined(__x86_64__) || defined(__x86_64)
   __m128i vsum = _mm_set1_epi16(0);
@@ -77,11 +76,11 @@ static inline double kmer_dist_simd16(const uint16_t *kv1, int len1, const uint1
   return (1. - dot);
 }
 
-/* ---------- Mínimos de vectores de conteo de k-mers, 8 bits ---------- */
-// 16 carriles de 8 bits con suma saturada (igual que _mm_adds_epu8). Si algún carril satura (255),
-// devuelve -1 y quien llama repite con la versión de 16 bits.
+/* ---------- Minima of k-mer count vectors, 8 bit ---------- */
+// 16 lanes of 8 bits with saturating add (as _mm_adds_epu8). If any lane saturates (255) it returns -1
+// and the caller retries with the 16-bit version.
 static inline double kmer_dist_simd8(const uint8_t *kv1, int len1, const uint8_t *kv2, int len2, int k) {
-  size_t n_kmer = 1 << (2*k); // asume n_kmer divisible por 16
+  size_t n_kmer = 1 << (2*k); // assumes n_kmer divisible by 16
   uint8_t dst[16];
 #if defined(__x86_64__) || defined(__x86_64)
   __m128i vsum = _mm_set1_epi8(0x00);
@@ -109,11 +108,11 @@ static inline double kmer_dist_simd8(const uint8_t *kv1, int len1, const uint8_t
   return (1. - dot);
 }
 
-/* ---------- k-mers en orden (para detectar alineamientos sin gaps) ---------- */
+/* ---------- Ordered k-mers (to detect gapless alignments) ---------- */
 static inline double kord_dist_simd(const uint16_t *kord1, int len1, const uint16_t *kord2, int len2, int k) {
   if(kord1 == NULL || kord2 == NULL) { return(-1.0); }
   size_t klen = (len1 < len2 ? len1 : len2) - k + 1;
-  size_t n_vec = klen - (klen % 8); // vectoriza en bloques de 8
+  size_t n_vec = klen - (klen % 8); // vectorize in blocks of 8
   uint16_t dst[8];
   const uint16_t *end = kord1 + n_vec;
 #if defined(__x86_64__) || defined(__x86_64)
@@ -132,7 +131,7 @@ static inline double kord_dist_simd(const uint16_t *kord1, int len1, const uint1
 #endif
   uint16_t dotsum = 0;
   for(int i=0; i<8; i++) { dotsum += dst[i]; }
-  for(size_t i=n_vec; i<klen; i++, kord1++, kord2++) { // resto, escalar
+  for(size_t i=n_vec; i<klen; i++, kord1++, kord2++) { // remainder, scalar
     if(*kord1 == *kord2) { dotsum++; }
   }
   double dot = ((double) dotsum)/((len1 < len2 ? len1 : len2) - k + 1.);

@@ -1,3 +1,32 @@
+CHANGES IN DadaS 1.36.0.9000 (fork of dada2 1.36.0)
+-----------------------
+
+DEFAULT OUTPUT
+
+    o Identical to dada2 1.36.0 for filterAndTrim, derepFastq, learnErrors, dada, mergePairs,
+      makeSequenceTable and removeBimeraDenovo.
+    o assignTaxonomy bootstraps are now reproducible with set.seed() and independent of the thread
+      count; values therefore differ from dada2's (non-reproducible) ones.
+
+PERFORMANCE
+
+    o Vectorized Needleman-Wunsch kernel now vectorizes under GCC -O2 (fused diagonal loop).
+    o Scalar R::ppois in the abundance p-value; error matrix copied once in the serial path.
+    o NEON implementations of the k-mer distance kernels on ARM.
+    o Vectorized quality validation in dada().
+
+ROBUSTNESS
+
+    o Errors inside worker threads no longer call the R API (dada_stop).
+    o Guard against a NULL alignment when computing hamming distances.
+    o Builds with R's default C++ standard.
+
+NEW (OPTIONAL)
+
+    o setDadaOpt(INDEL_RATE = x): per-event indel error rate in the error model (default 0).
+    o indelOnlyVariants(), estimateIndelRate().
+    o loessErrfunMonotone(): monotone loess error function for binned quality scores.
+
 CHANGES IN VERSION 1.16.0
 -----------------------
 

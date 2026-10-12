@@ -70,9 +70,9 @@ unsigned int tax_karray(const char *seq, unsigned int k, int *karray) {
   return(j);
 }
 
-// DadaS: el generador aleatorio (solo para desempatar) viene de afuera, uno por secuencia y sembrado desde
-// el RNG de R. Antes se creaban std::random_device + mt19937 en CADA llamada (~101 por secuencia): era lento
-// e ignoraba set.seed(), así que los bootstraps no eran reproducibles.
+// DadaS: the random generator (used for bootstrap subsampling and tie-breaking) is passed in, one per
+// sequence, seeded from R's RNG. Previously std::random_device + mt19937 were created on EVERY call (~101 per
+// sequence): slow, and set.seed() was ignored, so bootstrap values were not reproducible.
 int get_best_genus(int *karray, float *out_logp, unsigned int arraylen, unsigned int n_kmers, unsigned int ngenus, float *lgk_probability, std::mt19937 &gen) {
   unsigned int pos;
   float *lgk_v;
@@ -114,15 +114,15 @@ int get_best_genus(int *karray, float *out_logp, unsigned int arraylen, unsigned
 struct AssignParallel : public RcppParallel::Worker
 {
   // source data
-  const std::vector<std::string> &seqs; // DadaS: referencias, no copias
+  const std::vector<std::string> &seqs; // DadaS: references, not copies
   const std::vector<std::string> &rcs;
   float *lgk_probability;
   int *C_genusmat;
   double *C_unifs;
   int *C_rboot;
   int *C_rboot_tax;
-  uint32_t *C_seeds; // DadaS: una semilla por secuencia (desde el RNG de R)
-  int *C_err;        // DadaS: != 0 si hubo un error en un hilo (no se puede llamar a R desde un hilo)
+  uint32_t *C_seeds; // DadaS: one seed per sequence (from R's RNG)
+  int *C_err;        // DadaS: != 0 if a worker thread hit an error (R cannot be called from a worker thread)
 
   // destination assignment array
   int *C_rval;
@@ -165,14 +165,14 @@ struct AssignParallel : public RcppParallel::Worker
           C_rboot_tax[j*NBOOT + boot] = NA_INTEGER;
         }
       } else {
-        std::mt19937 gen(C_seeds[j]); // DadaS: un generador por secuencia → reproducible e independiente de los hilos
+        std::mt19937 gen(C_seeds[j]); // DadaS: one generator per sequence -> reproducible and independent of the thread count
         arraylen = tax_karray(seqs[j].c_str(), k, karray);
   
         // Find best hit
         max_g = get_best_genus(karray, &logp, arraylen, n_kmers, ngenus, lgk_probability, gen);
         if(try_rc) { // see if rev-comp is a better match to refs
           arraylen_rc = tax_karray(rcs[j].c_str(), k, karray_rc);
-          if(arraylen != arraylen_rc) { *C_err = 1; return; } // DadaS: antes Rcpp::stop desde un hilo
+          if(arraylen != arraylen_rc) { *C_err = 1; return; } // DadaS: previously Rcpp::stop from a worker thread
           max_g_rc = get_best_genus(karray_rc, &logp_rc, arraylen_rc, n_kmers, ngenus, lgk_probability, gen);
           if(logp_rc > logp) { // rev-comp is better, replace with it
             max_g = max_g_rc;
@@ -304,7 +304,7 @@ Rcpp::List C_assign_taxonomy2(std::vector<std::string> seqs, std::vector<std::st
     }
   }
   
-  // DadaS: semillas por secuencia tomadas del RNG de R (respeta set.seed)
+  // DadaS: per-sequence seeds drawn from R's RNG (respects set.seed)
   Rcpp::NumericVector seed_unifs = Rcpp::runif(nseq);
   std::vector<uint32_t> C_seeds(nseq);
   for(i=0;i<nseq;i++) { C_seeds[i] = (uint32_t) (seed_unifs[i] * 4294967295.0); }

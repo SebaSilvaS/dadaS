@@ -57,10 +57,10 @@ classification are consistent are included in the return table.
 }
 \examples{
 
-seqs <- getSequences(system.file("extdata", "example_seqs.fa", package="dada2"))
-training_fasta <- system.file("extdata", "example_train_set.fa.gz", package="dada2")
+seqs <- getSequences(system.file("extdata", "example_seqs.fa", package="dadaS"))
+training_fasta <- system.file("extdata", "example_train_set.fa.gz", package="dadaS")
 taxa <- assignTaxonomy(seqs, training_fasta)
-species_fasta <- system.file("extdata", "example_species_assignment.fa.gz", package="dada2")
+species_fasta <- system.file("extdata", "example_species_assignment.fa.gz", package="dadaS")
 taxa.spec <- addSpecies(taxa, species_fasta)
 taxa.spec.multi <- addSpecies(taxa, species_fasta, allowMultiple=TRUE)
 

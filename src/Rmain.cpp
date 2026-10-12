@@ -100,7 +100,7 @@ Rcpp::List dada_uniques(std::vector< std::string > seqs, std::vector<int> abunda
     Rprintf("SSE2 not supported.\n");
     SSE = 0;
   } */
-  if(!DADAS_SIMD) { SSE=0; } // DadaS: SSE2 en x86 o NEON en ARM (ver kmers_simd.h)
+  if(!DADAS_SIMD) { SSE=0; } // DadaS: SSE2 on x86 or NEON on ARM (see kmers_simd.h)
   
   /********** CONSTRUCT RAWS *********/
   char seq[SEQLEN];
@@ -308,7 +308,7 @@ B *run_dada(Raw **raws, int nraw, Rcpp::NumericMatrix errMat,
 
   B *bb;
   bb = b_new(raws, nraw, omegaA, omegaP, use_quals); // New cluster with all sequences in 1 bi
-  bb->indel_rate = indel_rate; // DadaS: <= 0 reproduce exactamente DADA2 (indels ignorados)
+  bb->indel_rate = indel_rate; // DadaS: <= 0 reproduces DADA2 exactly (indels ignored)
   // Everyone gets aligned within the initial cluster, no KMER screen
   if(multithread) { b_compare_parallel(bb, 0, errMat, match, mismatch, gap_pen, homo_gap_pen, use_kmers, 1.0, band_size, vectorized_alignment, SSE, gapless, greedy, verbose); }
   else { b_compare(bb, 0, errMat, match, mismatch, gap_pen, homo_gap_pen, use_kmers, 1.0, band_size, vectorized_alignment, SSE, gapless, greedy, verbose); }

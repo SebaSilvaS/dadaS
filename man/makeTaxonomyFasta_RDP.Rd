@@ -10,17 +10,17 @@ makeTaxonomyFasta_RDP(fin, fdb, fout, include.species = FALSE, compress = TRUE)
 \description{
 ## RDP Trainset 19
 path <- "~/tax/rdp/v19"
-dada2:::makeTaxonomyFasta_RDP(file.path(path, "trainset19_072023_speciesrank.fa"), 
+dadaS:::makeTaxonomyFasta_RDP(file.path(path, "trainset19_072023_speciesrank.fa"), 
                               file.path(path, "trainset19_db_taxid.txt"), 
                               "~/Desktop/rdp_19_toGenus_trainset.fa.gz", include.species=FALSE,
                               compress=TRUE)
-dada2:::tax.check("~/Desktop/rdp_19_toGenus_trainset.fa.gz")
+dadaS:::tax.check("~/Desktop/rdp_19_toGenus_trainset.fa.gz")
 }
 \details{
-dada2:::makeTaxonomyFasta_RDP(file.path(path, "trainset19_072023_speciesrank.fa"), 
+dadaS:::makeTaxonomyFasta_RDP(file.path(path, "trainset19_072023_speciesrank.fa"), 
                               file.path(path, "trainset19_db_taxid.txt"), 
                               "~/Desktop/rdp_19_toSpecies_trainset.fa.gz", include.species=TRUE,
                               compress=TRUE)
-dada2:::tax.check("~/Desktop/rdp_19_toSpecies_trainset.fa.gz")
+dadaS:::tax.check("~/Desktop/rdp_19_toSpecies_trainset.fa.gz")
 }
 \keyword{internal}

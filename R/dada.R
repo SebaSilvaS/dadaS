@@ -22,7 +22,7 @@ assign("HOMOPOLYMER_GAP_PENALTY", NULL, envir = dada_opts)
 assign("SSE", 2, envir = dada_opts)
 assign("GAPLESS", TRUE, envir=dada_opts)
 assign("GREEDY", TRUE, envir=dada_opts)
-assign("INDEL_RATE", 0, envir=dada_opts) # DadaS: tasa de error por indel; 0 = ignorar indels (como DADA2)
+assign("INDEL_RATE", 0, envir=dada_opts) # DadaS: per-event indel error rate; 0 = ignore indels (DADA2 behavior)
 assign("PSEUDO_PREVALENCE", 2, envir=dada_opts)
 assign("PSEUDO_ABUNDANCE", Inf, envir=dada_opts)
 # assign("FINAL_CONSENSUS", FALSE, envir=dada_opts) # NON-FUNCTIONAL AT THE MOMENT
@@ -280,12 +280,12 @@ dada <- function(derep,
         if(nrow(drpi$quals) != length(drpi$uniques)) {
           stop("derep$quals matrices must have one row for each derep$unique sequence.")
         }
-        # DadaS: validaciones vectorizadas (antes un sapply fila por fila, ~20% del tiempo de dada())
+        # DadaS: vectorized validation (previously a row-by-row sapply, ~20% of dada() run time)
         lens <- nchar(names(drpi$uniques))
         if(any(lens > ncol(drpi$quals))) { ###ITS
           stop("derep$quals matrices must have as many columns as the length of the derep$unique sequences.")
         }
-        # NA en las posiciones 1..largo de cada secuencia (lens se recicla por fila en orden de columnas)
+        # NA within positions 1..length of each sequence (lens recycles by row in column-major order)
         if(anyNA(drpi$quals[col(drpi$quals) <= lens])) { ###ITS
           stop("NAs in derep$quals matrix. Check that all input sequences had valid associated qualities assigned.")
         }
@@ -560,6 +560,13 @@ dada <- function(derep,
 #'  on via this option. If TRUE, unique sequences with reads less than those expected to be generated
 #'  by resequencing just the central unique in their partition are "locked" to that partition.
 #'  Modest (~30\%) speedup, and almost no impact on output. Default is TRUE.
+#' 
+#' INDEL_RATE (DadaS): The per-event error rate of internal indels. DADA2 ignores indels when computing
+#'  the probability that a sequence was produced by errors from its partition center, so variants that
+#'  differ only by indels are never split. If INDEL_RATE > 0, each internal indel event (a run of gap
+#'  columns, terminal gaps excluded) multiplies that probability by INDEL_RATE and counts as one
+#'  difference in the hamming distance. Default is 0 (identical to DADA2). See \code{\link{estimateIndelRate}}
+#'  to estimate a value from the data; forward and reverse reads usually need different values.
 #' 
 #' **New Partition Conditions**
 #' 

@@ -81,7 +81,7 @@ Faster external solutions such as cutadapt or trimmomatic are recommended for sh
 \examples{
 F27 <- "AGRGTTYGATYMTGGCTCAG"
 R1492 <- "RGYTACCTTGTTACGACTT"
-fn <- system.file("extdata", "samPBprimers.fastq.gz", package="dada2")
+fn <- system.file("extdata", "samPBprimers.fastq.gz", package="dadaS")
 fn.noprime <- tempfile(fileext=".fastq.gz")
 removePrimers(fn, fn.noprime, primer.fwd=F27, primer.rev=rc(R1492), orient=TRUE, verbose=TRUE)
 

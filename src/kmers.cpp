@@ -11,8 +11,8 @@
  * Current Kmer implementation requires kmer size of 3-7 only.
  */
 
-// DadaS: las implementaciones viven en kmers_simd.h (SSE2 en x86, NEON en ARM, escalar en el resto).
-// Estas funciones mantienen la interfaz original.
+// DadaS: the implementations live in kmers_simd.h (SSE2 on x86, NEON on ARM, scalar elsewhere).
+// These wrappers keep the original interface.
 double kmer_dist(uint16_t *kv1, int len1, uint16_t *kv2, int len2, int k) {
   return kmer_dist_scalar(kv1, len1, kv2, len2, k);
 }
@@ -32,12 +32,12 @@ double kmer_dist_SSEi_8(uint8_t *kv1, int len1, uint8_t *kv2, int len2, int k) {
 double kord_dist_SSEi(uint16_t *kord1, int len1, uint16_t *kord2, int len2, int k) {
   return kord_dist_simd(kord1, len1, kord2, len2, k);
 }
-#else // sin SIMD: no se llaman (Rmain.cpp pone SSE=0), pero se definen por completitud
+#else // no SIMD: never called (Rmain.cpp sets SSE=0), defined for completeness
 double kmer_dist_SSEi(uint16_t *kv1, int len1, uint16_t *kv2, int len2, int k) {
   return kmer_dist_scalar(kv1, len1, kv2, len2, k);
 }
 double kmer_dist_SSEi_8(uint8_t *kv1, int len1, uint8_t *kv2, int len2, int k) {
-  return -1.; // fuerza la versión de 16 bits
+  return -1.; // forces the 16-bit version
 }
 double kord_dist_SSEi(uint16_t *kord1, int len1, uint16_t *kord2, int len2, int k) {
   return kord_dist_scalar(kord1, len1, kord2, len2, k);

@@ -1,7 +1,36 @@
+# DadaS
+
+A faster, more robust fork of [DADA2](https://github.com/benjjneb/dada2) 1.36.0.
+
+- **Same results by default.** With default options every step (filtering, error learning,
+  denoising, merging, chimera removal) gives output identical to DADA2. The exception is taxonomy
+  bootstrap values, which are now reproducible with `set.seed()`.
+- **Faster.** About 1.6× for the whole pipeline on 7 NextSeq sediment samples (2.05 M read
+  pairs), up to 2.1× for chimera removal. Includes NEON SIMD on Apple Silicon / ARM.
+- **More robust.** Thread-safe error handling, and taxonomy results that do not depend on the
+  thread count.
+- **Optional extensions, off by default:**
+  - `setDadaOpt(INDEL_RATE = ...)` lets abundant indel-only variants form their own ASVs.
+  - `indelOnlyVariants()` and `estimateIndelRate()` diagnose indel variants and estimate a rate.
+  - `loessErrfunMonotone()` is an error function for binned quality scores.
+
+The package is named `dadaS`, so it installs alongside `dada2` and the two can be compared directly.
+See [REVIEW.md](REVIEW.md) for every change, its rationale and how it was verified.
+
+```r
+# from a clone of this repository
+install.packages(".", repos = NULL, type = "source")
+library(dadaS)   # same API as dada2
+```
+
+All credit for DADA2 goes to its authors (Callahan et al., 2016). The original README follows.
+
+---
+
 
 [![Build Status](https://github.com/benjjneb/dada2/actions/workflows/pages/pages-build-deployment/badge.svg)](https://github.com/benjjneb/dada2/actions/workflows/pages/pages-build-deployment)
 
-# dada2
+## dada2
 
 Exact sample inference from high-throughput amplicon data. Resolves real variants differing by as little as one nucleotide. Visit [the DADA2 website](https://benjjneb.github.io/dada2/index.html) for the most detailed and up-to-date documentation.
 

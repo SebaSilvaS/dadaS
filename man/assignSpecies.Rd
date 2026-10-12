@@ -52,8 +52,8 @@ A two-column character matrix. Rows correspond to the provided sequences,
 genus-species binomial classification of the input sequences.
 }
 \examples{
-seqs <- getSequences(system.file("extdata", "example_seqs.fa", package="dada2"))
-species_fasta <- system.file("extdata", "example_species_assignment.fa.gz", package="dada2")
+seqs <- getSequences(system.file("extdata", "example_seqs.fa", package="dadaS"))
+species_fasta <- system.file("extdata", "example_species_assignment.fa.gz", package="dadaS")
 spec <- assignSpecies(seqs, species_fasta)
 
 }

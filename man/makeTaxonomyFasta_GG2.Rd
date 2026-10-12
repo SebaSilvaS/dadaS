@@ -30,11 +30,11 @@ txfn <- "b7c3e691-ea51-4547-94dd-f79f49e41a36/data/taxonomy.tsv"
 }
 \details{
 fn.out <- "~/Desktop/gg2_2024_09_toGenus_trainset.fa.gz"
-dada2:::makeTaxonomyFasta_GG2(fn, txfn, fn.out, include.species=FALSE, compress=TRUE)
-dada2:::tax.check(fn.out)
+dadaS:::makeTaxonomyFasta_GG2(fn, txfn, fn.out, include.species=FALSE, compress=TRUE)
+dadaS:::tax.check(fn.out)
 
 fn.out.spc <- "~/Desktop/gg2_2024_09_toSpecies_trainset.fa.gz"
-dada2:::makeTaxonomyFasta_GG2(fn, txfn, fn.out.spc, include.species=TRUE, compress=TRUE)
-dada2:::tax.check(fn.out.spc)
+dadaS:::makeTaxonomyFasta_GG2(fn, txfn, fn.out.spc, include.species=TRUE, compress=TRUE)
+dadaS:::tax.check(fn.out.spc)
 }
 \keyword{internal}

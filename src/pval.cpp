@@ -45,8 +45,8 @@ double calc_pA(int reads, double E_reads, bool prior) {
   double norm, pval=1.;
   
   // Calculate pval from poisson cdf.
-  // DadaS: escalar R::ppois (Rmath) en lugar de Rcpp::ppois vectorizado. Mismo algoritmo y mismo
-  // resultado numérico, pero sin crear dos vectores de R por llamada (más rápido y sin tocar el heap de R).
+  // DadaS: scalar R::ppois (Rmath) instead of the vectorized Rcpp::ppois. Same algorithm and same
+  // numerical result, but no allocation of two R vectors per call (faster, and no R-heap access).
   // reads-1 since strict > being calculated, and want to include the observed count
   pval = R::ppois((double) (reads-1), E_reads, 0, 0);  // lower.tail = false: P(X > x)
 

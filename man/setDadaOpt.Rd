@@ -73,6 +73,13 @@ GREEDY: The DADA2 algorithm is not greedy, but a very restricted form of greedin
  by resequencing just the central unique in their partition are "locked" to that partition.
  Modest (~30\%) speedup, and almost no impact on output. Default is TRUE.
 
+INDEL_RATE (DadaS): The per-event error rate of internal indels. DADA2 ignores indels when computing
+ the probability that a sequence was produced by errors from its partition center, so variants that
+ differ only by indels are never split. If INDEL_RATE > 0, each internal indel event (a run of gap
+ columns, terminal gaps excluded) multiplies that probability by INDEL_RATE and counts as one
+ difference in the hamming distance. Default is 0 (identical to DADA2). See \code{\link{estimateIndelRate}}
+ to estimate a value from the data; forward and reverse reads usually need different values.
+
 **New Partition Conditions**
 
 MIN_FOLD: The minimum fold-overabundance for sequences to form new partitions. Default value is 1, which means this

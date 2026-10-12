@@ -35,11 +35,11 @@
 #define CACHE_STRIDE 64 // up to 64kb of distance between compared kmer8 vectors
 
 
-/* DadaS: error seguro para hilos.
-   Rcpp::stop llama a la API de R (construye un objeto de R con la traza), lo que NO es seguro fuera
-   del hilo principal: si fallaba algo dentro de un RcppParallel::Worker, R podía caerse.
-   dada_stop solo lanza una std::runtime_error; TBB la traslada al hilo que llamó a parallelFor
-   y Rcpp la convierte en un error normal de R. Desde el hilo principal se comporta igual que Rcpp::stop. */
+/* DadaS: thread-safe error.
+   Rcpp::stop calls the R API (it builds an R object with the call trace), which is NOT safe outside the
+   main thread: an error inside an RcppParallel::Worker could crash R.
+   dada_stop only throws a std::runtime_error; TBB propagates it to the thread that called parallelFor and
+   Rcpp turns it into an ordinary R error. On the main thread it behaves like Rcpp::stop. */
 [[noreturn]] inline void dada_stop(const char *fmt, ...) {
   char buf[512];
   va_list args;

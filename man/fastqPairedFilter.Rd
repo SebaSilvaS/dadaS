@@ -149,8 +149,8 @@ remain identically ordered.
 }
 \examples{
 
-testFastqF = system.file("extdata", "sam1F.fastq.gz", package="dada2")
-testFastqR = system.file("extdata", "sam1R.fastq.gz", package="dada2")
+testFastqF = system.file("extdata", "sam1F.fastq.gz", package="dadaS")
+testFastqR = system.file("extdata", "sam1R.fastq.gz", package="dadaS")
 filtFastqF <- tempfile(fileext=".fastq.gz")
 filtFastqR <- tempfile(fileext=".fastq.gz")
 fastqPairedFilter(c(testFastqF, testFastqR), c(filtFastqF, filtFastqR), maxN=0, maxEE=2)

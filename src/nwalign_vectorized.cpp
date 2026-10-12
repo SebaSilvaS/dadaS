@@ -4,20 +4,20 @@ using namespace Rcpp;
 
 #define MIN(a,b) (((a)<(b))?(a):(b))
 
-// DadaS: R compila los paquetes con -O2. Con GCC < 14 eso NO vectoriza estos bucles (el modelo de
-// costo "very-cheap" de -O2 rechaza bucles con epílogo), así que el alineador "vectorizado" corría
-// escalar en Linux. Forzamos la vectorización solo aquí. Aritmética entera: resultados idénticos.
-// (clang, el compilador de macOS, ya vectoriza con -O2; allí esto no cambia nada.)
+// DadaS: R builds packages with -O2. With GCC < 14 that does NOT vectorize these loops (the "very-cheap"
+// cost model of -O2 rejects loops that need an epilogue), so the "vectorized" aligner ran scalar on Linux.
+// We force vectorization for this file only. Integer arithmetic: identical results.
+// (clang, the macOS compiler, already vectorizes at -O2; there this changes nothing.)
 #if defined(__GNUC__) && !defined(__clang__)
 #define DADAS_VECTORIZE __attribute__((optimize("tree-vectorize", "vect-cost-model=dynamic")))
 #else
 #define DADAS_VECTORIZE
 #endif
 
-// DadaS: bucle de una antidiagonal con el cálculo de la diagonal fusionado.
-// Antes se llenaba un diag_buf en un bucle escalar aparte (s1 recorrido hacia atrás, s2 hacia adelante:
-// no vectorizable) y luego se leía aquí. Ahora s1r es s1 invertido, de modo que a[] y b[] avanzan juntos
-// y todo el bucle se vectoriza. Mismas operaciones enteras y mismo desempate: resultados idénticos.
+// DadaS: one anti-diagonal loop with the diagonal-score computation fused in.
+// Previously diag_buf was filled in a separate scalar loop (s1 walked backwards, s2 forwards: not
+// vectorizable) and read here. Now s1r is s1 reversed, so a[] and b[] advance together and the whole
+// loop vectorizes. Same integer operations and same tie-breaking: identical results.
 //   SWAP=false: precedencia up > left > diag      SWAP=true: left > up > diag
 template<bool SWAP>
 DADAS_VECTORIZE
