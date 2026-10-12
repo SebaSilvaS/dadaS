@@ -68,6 +68,7 @@ typedef struct {
  Note: positions will be 0-indexed in the alignment */
 typedef struct {
   unsigned int nsubs;   // number of substitions
+  unsigned int nindel;  // DadaS: number of internal indel events (gap runs, terminal gaps excluded)
   unsigned int len0;    // The length of the ref seq
   uint16_t *map;    // map of the sequence position in the ref seq to that in the aligned seq
   uint16_t *pos;    // sequence position of the substitition: index in the reference seq
@@ -131,6 +132,7 @@ typedef struct {
   double omegaA;
   double omegaP;
   bool use_quals;
+  double indel_rate;  // DadaS: per-event indel error rate; <= 0 = indels ignored (DADA2 behavior)
   double *lams;
   double *cdf;
   size_t nlam;

@@ -598,6 +598,23 @@ Sub *al2subs(char **al) {
   }
 
   sub->len0 = len0;
+  // DadaS: count internal indel events (runs of gap columns between the first and last column where
+  // both sequences have a nucleotide). Terminal gaps are ends-free and are not counted.
+  {
+    int first = -1, last = -1;
+    for(i=0;i<align_length;i++) {
+      bool both = (al0[i] != '-') && (al1[i] != '-');
+      if(both) { if(first < 0) { first = i; } last = i; }
+    }
+    unsigned int nindel = 0;
+    bool prev_gap = false;
+    for(i=first; first >= 0 && i<=last; i++) {
+      bool gap = (al0[i] == '-') || (al1[i] == '-');
+      if(gap && !prev_gap) { nindel++; }
+      prev_gap = gap;
+    }
+    sub->nindel = nindel;
+  }
   sub->map = (uint16_t *) malloc(len0 * sizeof(uint16_t)); //E
   sub->pos = (uint16_t *) malloc(nsubs * sizeof(uint16_t)); //E
   sub->nt0 = (char *) malloc(nsubs); //E
@@ -690,6 +707,7 @@ Sub *sub_copy(Sub *sub) {
   }
   
   rsub->nsubs = sub->nsubs;
+  rsub->nindel = sub->nindel;
   rsub->len0 = sub->len0;
   memcpy(rsub->map, sub->map, len0 * sizeof(uint16_t));
   memcpy(rsub->pos, sub->pos, nsubs * sizeof(uint16_t));

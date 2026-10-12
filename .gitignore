@@ -50,3 +50,5 @@ workflow/runs/
 workflow/data*/
 *.o
 *.so
+workflow/runs*/
+workflow/data*/

@@ -22,6 +22,7 @@ assign("HOMOPOLYMER_GAP_PENALTY", NULL, envir = dada_opts)
 assign("SSE", 2, envir = dada_opts)
 assign("GAPLESS", TRUE, envir=dada_opts)
 assign("GREEDY", TRUE, envir=dada_opts)
+assign("INDEL_RATE", 0, envir=dada_opts) # DadaS: tasa de error por indel; 0 = ignorar indels (como DADA2)
 assign("PSEUDO_PREVALENCE", 2, envir=dada_opts)
 assign("PSEUDO_ABUNDANCE", Inf, envir=dada_opts)
 # assign("FINAL_CONSENSUS", FALSE, envir=dada_opts) # NON-FUNCTIONAL AT THE MOMENT
@@ -206,6 +207,8 @@ dada <- function(derep,
   
   # Validate OMEGA parameters
   if(opts$OMEGA_A < 0 || opts$OMEGA_A >= 1) stop("OMEGA_A must be between zero and one.")
+  if(is.null(opts$INDEL_RATE)) opts$INDEL_RATE <- 0 # DadaS
+  if(!is.numeric(opts$INDEL_RATE) || opts$INDEL_RATE < 0 || opts$INDEL_RATE >= 1) stop("INDEL_RATE must be in [0, 1).")
   if(opts$OMEGA_P < 0 || opts$OMEGA_P >= 1) stop("OMEGA_P must be between zero and one.")
   if(opts$OMEGA_P < opts$OMEGA_A && length(priors) > 0) warning("OMEGA_P should generally be larger than OMEGA_A.")
   if(opts$OMEGA_C > 1e-10 && selfConsist) warning("Strict error correction (OMEGA_C < 1e-10) is not recommended when learning error rates.")
@@ -351,7 +354,8 @@ dada <- function(derep,
                           (verbose>=2),
                           opts[["SSE"]],
                           opts[["GAPLESS"]],
-                          opts[["GREEDY"]])
+                          opts[["GREEDY"]],
+                          opts[["INDEL_RATE"]])
       
       # Augment the returns
       res$clustering$sequence <- as.character(res$clustering$sequence)
