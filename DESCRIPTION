@@ -1,6 +1,6 @@
-Package: dada2
+Package: dadaS
 Type: Package
-Title: Accurate, high-resolution sample inference from amplicon sequencing data
+Title: DadaS: a faster, more robust fork of DADA2 for amplicon sequence variant inference
 Description: The dada2 package infers exact amplicon sequence variants (ASVs) from 
     high-throughput amplicon sequencing data, replacing the coarser and less accurate
     OTU clustering approach. The dada2 pipeline takes as input demultiplexed fastq 

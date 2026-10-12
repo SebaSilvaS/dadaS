@@ -13,7 +13,7 @@ void cpuid(int info[4], int InfoType){
 #endif */
 
 using namespace Rcpp;
-//' @useDynLib dada2
+//' @useDynLib dadaS
 //' @importFrom Rcpp evalCpp
 
 B *run_dada(Raw **raws, int nraw, Rcpp::NumericMatrix errMat, 
