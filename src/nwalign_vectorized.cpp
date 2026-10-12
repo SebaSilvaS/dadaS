@@ -18,7 +18,7 @@ using namespace Rcpp;
 // Previously diag_buf was filled in a separate scalar loop (s1 walked backwards, s2 forwards: not
 // vectorizable) and read here. Now s1r is s1 reversed, so a[] and b[] advance together and the whole
 // loop vectorizes. Same integer operations and same tie-breaking: identical results.
-//   SWAP=false: precedencia up > left > diag      SWAP=true: left > up > diag
+//   SWAP=false: precedence up > left > diag      SWAP=true: left > up > diag
 template<bool SWAP>
 DADAS_VECTORIZE
 static inline void dploop_fused(const int16_t *__restrict__ ptr_left, const int16_t *__restrict__ ptr_up,
@@ -85,7 +85,7 @@ char **nwalign_vectorized2(const char *s1, size_t len1, const char *s2, size_t l
   nrow = len1 + len2 + 1;
   int16_t *d = (int16_t *) malloc(ncol * nrow * sizeof(int16_t));
   int16_t *p = (int16_t *) malloc(ncol * nrow * sizeof(int16_t));
-  char *s1r = (char *) malloc(len1 + 1); // s1 invertido (ver dploop_fused)
+  char *s1r = (char *) malloc(len1 + 1); // s1 reversed (see dploop_fused)
   if (d == NULL || p == NULL || s1r == NULL)  dada_stop("Memory allocation failed.");
   for(i=0;i<len1;i++) { s1r[i] = s1[len1-1-i]; }
   
@@ -148,7 +148,7 @@ char **nwalign_vectorized2(const char *s1, size_t len1, const char *s2, size_t l
   
   while(row <= (len1+len2)) {
       // Fill out row
-    // s1[i_max - k] == s1r[len1-1-i_max + k]  y  s2[j_min + k], para k = 0..n-1
+    // s1[i_max - k] == s1r[len1-1-i_max + k]  and  s2[j_min + k], for k = 0..n-1
     ptr_left = &d[(row-1)*ncol + col_min-even];
     ptr_up = &d[(row-1)*ncol + col_min+1-even];
     if(swap) {
