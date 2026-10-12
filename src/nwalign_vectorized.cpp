@@ -4,57 +4,43 @@ using namespace Rcpp;
 
 #define MIN(a,b) (((a)<(b))?(a):(b))
 
-// Precedence is up>left>diag
-void dploop_vec(int16_t *__restrict__ ptr_left, int16_t *__restrict__ ptr_diag, int16_t *__restrict__ ptr_up, int16_t *__restrict__ d, int16_t *__restrict__ p, int16_t gap_p, size_t n) {
-  int16_t left, diag, up, entry, pentry;
-  size_t i = 0;
-  
-  while(i<n) {
-    left = *ptr_left + gap_p;
-    diag = *ptr_diag;
-    up = *ptr_up + gap_p;
-    
-    entry = up >= left ? up : left;
-    pentry = up >= left ? 3 : 2;
-    pentry = entry >= diag ? pentry : 1;
-    entry = entry >= diag ? entry : diag;
-    
-    *d = entry; // Vectorizes if this points to another array
-    *p = pentry;
-    
-    ptr_left++;
-    ptr_diag++;
-    ptr_up++;
-    d++;
-    p++;
-    i++;
-  }
-}
+// DadaS: R compila los paquetes con -O2. Con GCC < 14 eso NO vectoriza estos bucles (el modelo de
+// costo "very-cheap" de -O2 rechaza bucles con epílogo), así que el alineador "vectorizado" corría
+// escalar en Linux. Forzamos la vectorización solo aquí. Aritmética entera: resultados idénticos.
+// (clang, el compilador de macOS, ya vectoriza con -O2; allí esto no cambia nada.)
+#if defined(__GNUC__) && !defined(__clang__)
+#define DADAS_VECTORIZE __attribute__((optimize("tree-vectorize", "vect-cost-model=dynamic")))
+#else
+#define DADAS_VECTORIZE
+#endif
 
-// Precedence is left>up>diag
-void dploop_vec_swap(int16_t *__restrict__ ptr_left, int16_t *__restrict__ ptr_diag, int16_t *__restrict__ ptr_up, int16_t *__restrict__ d, int16_t *__restrict__ p, int16_t gap_p, size_t n) {
-  int16_t left, diag, up, entry, pentry;
-  size_t i = 0;
-  
-  while(i<n) {
-    left = *ptr_left + gap_p;
-    diag = *ptr_diag;
-    up = *ptr_up + gap_p;
-    
-    entry = left >= up ? left : up;
-    pentry = left >= up ? 2 : 3;
+// DadaS: bucle de una antidiagonal con el cálculo de la diagonal fusionado.
+// Antes se llenaba un diag_buf en un bucle escalar aparte (s1 recorrido hacia atrás, s2 hacia adelante:
+// no vectorizable) y luego se leía aquí. Ahora s1r es s1 invertido, de modo que a[] y b[] avanzan juntos
+// y todo el bucle se vectoriza. Mismas operaciones enteras y mismo desempate: resultados idénticos.
+//   SWAP=false: precedencia up > left > diag      SWAP=true: left > up > diag
+template<bool SWAP>
+DADAS_VECTORIZE
+static inline void dploop_fused(const int16_t *__restrict__ ptr_left, const int16_t *__restrict__ ptr_up,
+                                const int16_t *__restrict__ ptr_d2, const char *__restrict__ a, const char *__restrict__ b,
+                                int16_t *__restrict__ d, int16_t *__restrict__ p,
+                                int16_t match, int16_t mismatch, int16_t gap_p, size_t n) {
+  for(size_t k=0; k<n; k++) {
+    int16_t left = ptr_left[k] + gap_p;
+    int16_t up = ptr_up[k] + gap_p;
+    int16_t diag = ptr_d2[k] + (a[k] == b[k] ? match : mismatch);
+    int16_t entry, pentry;
+    if(SWAP) {
+      entry = left >= up ? left : up;
+      pentry = left >= up ? 2 : 3;
+    } else {
+      entry = up >= left ? up : left;
+      pentry = up >= left ? 3 : 2;
+    }
     pentry = entry >= diag ? pentry : 1;
     entry = entry >= diag ? entry : diag;
-    
-    *d = entry; // Vectorizes if this points to another array
-    *p = pentry;
-    
-    ptr_left++;
-    ptr_diag++;
-    ptr_up++;
-    d++;
-    p++;
-    i++;
+    d[k] = entry;
+    p[k] = pentry;
   }
 }
 
@@ -75,7 +61,7 @@ char **nwalign_vectorized2(const char *s1, size_t len1, const char *s2, size_t l
   size_t start_col;
   size_t col_min, col_max, even;
   size_t i_max, j_min;
-  int16_t *ptr_left, *ptr_diag, *ptr_up, *ptr_d, *ptr_p;
+  int16_t *ptr_left, *ptr_up, *ptr_d, *ptr_p;
   bool swap = false;
   bool recalc_left = false, recalc_right = false;
   const char *ptr_const_char;
@@ -99,8 +85,9 @@ char **nwalign_vectorized2(const char *s1, size_t len1, const char *s2, size_t l
   nrow = len1 + len2 + 1;
   int16_t *d = (int16_t *) malloc(ncol * nrow * sizeof(int16_t));
   int16_t *p = (int16_t *) malloc(ncol * nrow * sizeof(int16_t));
-  int16_t *diag_buf = (int16_t *) malloc(ncol * sizeof(int16_t));
-  if (d == NULL || p == NULL || diag_buf == NULL)  Rcpp::stop("Memory allocation failed.");
+  char *s1r = (char *) malloc(len1 + 1); // s1 invertido (ver dploop_fused)
+  if (d == NULL || p == NULL || s1r == NULL)  Rcpp::stop("Memory allocation failed.");
+  for(i=0;i<len1;i++) { s1r[i] = s1[len1-1-i]; }
   
   // For banding issues later on
   int16_t fill_val = INT16_MIN - MIN(MIN(mismatch, gap_p), MIN(match, 0));
@@ -161,16 +148,15 @@ char **nwalign_vectorized2(const char *s1, size_t len1, const char *s2, size_t l
   
   while(row <= (len1+len2)) {
       // Fill out row
-    for(col=col_min,i=i_max,j=j_min;col<(1+col_max);col++,i--,j++) {
-      diag_buf[col] = d[(row-2)*ncol + col] + (s1[i] == s2[j] ? match : mismatch);
-    }
+    // s1[i_max - k] == s1r[len1-1-i_max + k]  y  s2[j_min + k], para k = 0..n-1
     ptr_left = &d[(row-1)*ncol + col_min-even];
-    ptr_diag = &diag_buf[col_min];
     ptr_up = &d[(row-1)*ncol + col_min+1-even];
     if(swap) {
-      dploop_vec_swap(ptr_left, ptr_diag, ptr_up, &d[row*ncol + col_min], &p[row*ncol + col_min], gap_p, col_max-col_min+1);
+      dploop_fused<true>(ptr_left, ptr_up, &d[(row-2)*ncol + col_min], &s1r[len1-1-i_max], &s2[j_min],
+                         &d[row*ncol + col_min], &p[row*ncol + col_min], match, mismatch, gap_p, col_max-col_min+1);
     } else {
-      dploop_vec(ptr_left, ptr_diag, ptr_up, &d[row*ncol + col_min], &p[row*ncol + col_min], gap_p, col_max-col_min+1);
+      dploop_fused<false>(ptr_left, ptr_up, &d[(row-2)*ncol + col_min], &s1r[len1-1-i_max], &s2[j_min],
+                          &d[row*ncol + col_min], &p[row*ncol + col_min], match, mismatch, gap_p, col_max-col_min+1);
     }
     
     // Offset to the boundary after top wedge (w/ prefilled boundary) is done
@@ -287,7 +273,7 @@ char **nwalign_vectorized2(const char *s1, size_t len1, const char *s2, size_t l
   // Free DP objects
   free(d);
   free(p);
-  free(diag_buf);
+  free(s1r);
   
   // Return to input ordering
   if(swap) {

@@ -35,6 +35,16 @@ void b_compare(B *b, unsigned int i, Rcpp::NumericMatrix errMat,
     center->kmer8 = b->raw[cached]->kmer8;
   } */
 
+  // DadaS: copia de la matriz de error en un arreglo C, una vez por llamada (como la versión paralela).
+  // Antes compute_lambda recibía la Rcpp::NumericMatrix por valor en CADA comparación (protección en el
+  // heap de R cada vez): el camino de un hilo era más lento que el paralelo con 1 hilo. Mismo producto,
+  // mismo orden: λ idéntico.
+  unsigned int ncol = errMat.ncol();
+  std::vector<double> err_mat(16 * ncol);
+  for(unsigned int row=0; row<16; row++) {
+    for(unsigned int col=0; col<ncol; col++) { err_mat[row*ncol + col] = errMat(row, col); }
+  }
+
   // align all raws to this sequence and compute corresponding lambda
   center_reads = b->bi[i]->center->reads;
   if(verbose) { Rprintf("C%iLU:", i); }
@@ -64,7 +74,7 @@ void b_compare(B *b, unsigned int i, Rcpp::NumericMatrix errMat,
     }
     
     // Calculate lambda for that sub
-    lambda = compute_lambda(raw, sub, errMat, b->use_quals, errMat.ncol());
+    lambda = compute_lambda_ts(raw, sub, ncol, err_mat.data(), b->use_quals);
 
     // Store lambda and set self
     if(index == b->bi[i]->center->index) { b->bi[i]->self = lambda; }

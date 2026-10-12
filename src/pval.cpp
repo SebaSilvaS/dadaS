@@ -45,10 +45,10 @@ double calc_pA(int reads, double E_reads, bool prior) {
   double norm, pval=1.;
   
   // Calculate pval from poisson cdf.
-  Rcpp::IntegerVector n_repeats(1);
-  n_repeats(0) = reads-1; // -1 since strict > being calculated, and want to include the observed count
-  Rcpp::NumericVector res = Rcpp::ppois(n_repeats, E_reads, false);  // lower.tail = false: P(X > x)
-  pval = Rcpp::as<double>(res);
+  // DadaS: escalar R::ppois (Rmath) en lugar de Rcpp::ppois vectorizado. Mismo algoritmo y mismo
+  // resultado numérico, pero sin crear dos vectores de R por llamada (más rápido y sin tocar el heap de R).
+  // reads-1 since strict > being calculated, and want to include the observed count
+  pval = R::ppois((double) (reads-1), E_reads, 0, 0);  // lower.tail = false: P(X > x)
 
   if(!prior) {
     // Calculate norm (since conditioning on sequence being present).
