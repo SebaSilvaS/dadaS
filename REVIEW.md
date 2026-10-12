@@ -119,8 +119,13 @@ Evaluation:
   - The new ASVs rarely occur in more than one sample: 2.2 % do, against 18.6 % of the original ASVs
     with the same abundance (9–40 reads).
   - Only 4 differ from an existing ASV by indels alone.
-  - So in these data, the option mostly adds low-abundance noise. Results with per-read rates
-    (F 7e-3, R 1.8e-3) are in `workflow/resultados/`.
+  - With per-read rates estimated by `estimateIndelRate` (99th percentile: F 7e-3, R 1.8e-3) the
+    picture is the same: 9,593 ASVs (1,074 new, 262 lost), 0.8 % of reads in new ASVs, 2.3 % of the
+    9–40-read new ASVs in more than one sample.
+  - So in these data, the option mostly adds low-abundance noise rather than resolving indel
+    variants. Most new ASVs (855 of 1,074) are more than 10 differences away from any original
+    ASV, which suggests that the change in partitioning lets through sequences that DADA2
+    discarded, not that indel variants are being split. This is the main open question.
 
 Open questions for the reviewer:
 
