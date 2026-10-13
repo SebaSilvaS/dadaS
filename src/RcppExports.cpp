@@ -14,8 +14,8 @@ Rcpp::Rostream<false>& Rcpp::Rcerr = Rcpp::Rcpp_cerr_get();
 #endif
 
 // dada_uniques
-Rcpp::List dada_uniques(std::vector< std::string > seqs, std::vector<int> abundances, std::vector<bool> priors, Rcpp::NumericMatrix err, Rcpp::NumericMatrix quals, int match, int mismatch, int gap, bool use_kmers, double kdist_cutoff, int band_size, double omegaA, double omegaP, double omegaC, bool detect_singletons, int max_clust, double min_fold, int min_hamming, int min_abund, bool use_quals, bool final_consensus, bool vectorized_alignment, int homo_gap, bool multithread, bool verbose, int SSE, bool gapless, bool greedy, double indel_rate);
-RcppExport SEXP _dadaS_dada_uniques(SEXP seqsSEXP, SEXP abundancesSEXP, SEXP priorsSEXP, SEXP errSEXP, SEXP qualsSEXP, SEXP matchSEXP, SEXP mismatchSEXP, SEXP gapSEXP, SEXP use_kmersSEXP, SEXP kdist_cutoffSEXP, SEXP band_sizeSEXP, SEXP omegaASEXP, SEXP omegaPSEXP, SEXP omegaCSEXP, SEXP detect_singletonsSEXP, SEXP max_clustSEXP, SEXP min_foldSEXP, SEXP min_hammingSEXP, SEXP min_abundSEXP, SEXP use_qualsSEXP, SEXP final_consensusSEXP, SEXP vectorized_alignmentSEXP, SEXP homo_gapSEXP, SEXP multithreadSEXP, SEXP verboseSEXP, SEXP SSESEXP, SEXP gaplessSEXP, SEXP greedySEXP, SEXP indel_rateSEXP) {
+Rcpp::List dada_uniques(std::vector< std::string > seqs, std::vector<int> abundances, std::vector<bool> priors, Rcpp::NumericMatrix err, Rcpp::NumericMatrix quals, int match, int mismatch, int gap, bool use_kmers, double kdist_cutoff, int band_size, double omegaA, double omegaP, double omegaC, bool detect_singletons, int max_clust, double min_fold, int min_hamming, int min_abund, bool use_quals, bool final_consensus, bool vectorized_alignment, int homo_gap, bool multithread, bool verbose, int SSE, bool gapless, bool greedy, double indel_rate, SEXP align_cache);
+RcppExport SEXP _dadaS_dada_uniques(SEXP seqsSEXP, SEXP abundancesSEXP, SEXP priorsSEXP, SEXP errSEXP, SEXP qualsSEXP, SEXP matchSEXP, SEXP mismatchSEXP, SEXP gapSEXP, SEXP use_kmersSEXP, SEXP kdist_cutoffSEXP, SEXP band_sizeSEXP, SEXP omegaASEXP, SEXP omegaPSEXP, SEXP omegaCSEXP, SEXP detect_singletonsSEXP, SEXP max_clustSEXP, SEXP min_foldSEXP, SEXP min_hammingSEXP, SEXP min_abundSEXP, SEXP use_qualsSEXP, SEXP final_consensusSEXP, SEXP vectorized_alignmentSEXP, SEXP homo_gapSEXP, SEXP multithreadSEXP, SEXP verboseSEXP, SEXP SSESEXP, SEXP gaplessSEXP, SEXP greedySEXP, SEXP indel_rateSEXP, SEXP align_cacheSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -48,7 +48,29 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< bool >::type gapless(gaplessSEXP);
     Rcpp::traits::input_parameter< bool >::type greedy(greedySEXP);
     Rcpp::traits::input_parameter< double >::type indel_rate(indel_rateSEXP);
-    rcpp_result_gen = Rcpp::wrap(dada_uniques(seqs, abundances, priors, err, quals, match, mismatch, gap, use_kmers, kdist_cutoff, band_size, omegaA, omegaP, omegaC, detect_singletons, max_clust, min_fold, min_hamming, min_abund, use_quals, final_consensus, vectorized_alignment, homo_gap, multithread, verbose, SSE, gapless, greedy, indel_rate));
+    Rcpp::traits::input_parameter< SEXP >::type align_cache(align_cacheSEXP);
+    rcpp_result_gen = Rcpp::wrap(dada_uniques(seqs, abundances, priors, err, quals, match, mismatch, gap, use_kmers, kdist_cutoff, band_size, omegaA, omegaP, omegaC, detect_singletons, max_clust, min_fold, min_hamming, min_abund, use_quals, final_consensus, vectorized_alignment, homo_gap, multithread, verbose, SSE, gapless, greedy, indel_rate, align_cache));
+    return rcpp_result_gen;
+END_RCPP
+}
+// dada_align_cache_new
+SEXP dada_align_cache_new();
+RcppExport SEXP _dadaS_dada_align_cache_new() {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    rcpp_result_gen = Rcpp::wrap(dada_align_cache_new());
+    return rcpp_result_gen;
+END_RCPP
+}
+// dada_align_cache_size
+Rcpp::NumericVector dada_align_cache_size(SEXP align_cache);
+RcppExport SEXP _dadaS_dada_align_cache_size(SEXP align_cacheSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< SEXP >::type align_cache(align_cacheSEXP);
+    rcpp_result_gen = Rcpp::wrap(dada_align_cache_size(align_cache));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -198,6 +220,22 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// C_check_fused_subs
+int C_check_fused_subs(std::vector<std::string> centers, std::vector<std::string> raws, int match, int mismatch, int gap_p, int band);
+RcppExport SEXP _dadaS_C_check_fused_subs(SEXP centersSEXP, SEXP rawsSEXP, SEXP matchSEXP, SEXP mismatchSEXP, SEXP gap_pSEXP, SEXP bandSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< std::vector<std::string> >::type centers(centersSEXP);
+    Rcpp::traits::input_parameter< std::vector<std::string> >::type raws(rawsSEXP);
+    Rcpp::traits::input_parameter< int >::type match(matchSEXP);
+    Rcpp::traits::input_parameter< int >::type mismatch(mismatchSEXP);
+    Rcpp::traits::input_parameter< int >::type gap_p(gap_pSEXP);
+    Rcpp::traits::input_parameter< int >::type band(bandSEXP);
+    rcpp_result_gen = Rcpp::wrap(C_check_fused_subs(centers, raws, match, mismatch, gap_p, band));
+    return rcpp_result_gen;
+END_RCPP
+}
 // C_matchRef
 Rcpp::IntegerVector C_matchRef(std::vector<std::string> seqs, std::string ref, unsigned int word_size, bool non_overlapping);
 RcppExport SEXP _dadaS_C_matchRef(SEXP seqsSEXP, SEXP refSEXP, SEXP word_sizeSEXP, SEXP non_overlappingSEXP) {
@@ -273,7 +311,9 @@ RcppExport SEXP _dadaS_RcppExport_registerCCallable() {
 }
 
 static const R_CallMethodDef CallEntries[] = {
-    {"_dadaS_dada_uniques", (DL_FUNC) &_dadaS_dada_uniques, 29},
+    {"_dadaS_dada_uniques", (DL_FUNC) &_dadaS_dada_uniques, 30},
+    {"_dadaS_dada_align_cache_new", (DL_FUNC) &_dadaS_dada_align_cache_new, 0},
+    {"_dadaS_dada_align_cache_size", (DL_FUNC) &_dadaS_dada_align_cache_size, 1},
     {"_dadaS_C_is_bimera", (DL_FUNC) &_dadaS_C_is_bimera, 8},
     {"_dadaS_C_table_bimera2", (DL_FUNC) &_dadaS_C_table_bimera2, 10},
     {"_dadaS_C_nwalign", (DL_FUNC) &_dadaS_C_nwalign, 8},
@@ -284,6 +324,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_dadaS_kord_dist", (DL_FUNC) &_dadaS_kord_dist, 4},
     {"_dadaS_kmer_matches", (DL_FUNC) &_dadaS_kmer_matches, 3},
     {"_dadaS_kdist_matches", (DL_FUNC) &_dadaS_kdist_matches, 3},
+    {"_dadaS_C_check_fused_subs", (DL_FUNC) &_dadaS_C_check_fused_subs, 6},
     {"_dadaS_C_matchRef", (DL_FUNC) &_dadaS_C_matchRef, 4},
     {"_dadaS_C_matrixEE", (DL_FUNC) &_dadaS_C_matrixEE, 1},
     {"_dadaS_C_nwvec", (DL_FUNC) &_dadaS_C_nwvec, 7},

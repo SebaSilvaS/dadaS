@@ -150,14 +150,13 @@ mergePairs <- function(dadaF, derepF, dadaR, derepR, minOverlap = 12, maxMismatc
           # Align forward and reverse reads.
           # Use unbanded N-W align to compare forward/reverse
           # Adjusting align params to prioritize zero-mismatch merges
-            tmp <- getDadaOpt(c("MATCH", "MISMATCH", "GAP_PENALTY"))
-            if(maxMismatch==0) {
-                setDadaOpt(MATCH=1L, MISMATCH=-64L, GAP_PENALTY=-64L)
-            } else {
-                setDadaOpt(MATCH=1L, MISMATCH=-8L, GAP_PENALTY=-8L)
-            }
-            alvecs <- mapply(function(x,y) nwalign(x,y,band=-1,...), Funqseq, Runqseq, SIMPLIFY=FALSE)
-            setDadaOpt(tmp)
+          # DadaS: the scores are passed to nwalign directly. They used to be set with setDadaOpt() and restored
+          # afterwards, so an error or an interrupt in between left the whole session with these scores.
+            pen <- if(maxMismatch==0) -64L else -8L
+            alargs <- list(match=1L, mismatch=pen, gap=pen, band=-1)
+            dots <- list(...)
+            alargs[names(dots)] <- dots # arguments in ... take precedence, as before
+            alvecs <- mapply(function(x,y) do.call(nwalign, c(list(x, y), alargs)), Funqseq, Runqseq, SIMPLIFY=FALSE)
             outs <- t(sapply(alvecs, function(x) C_eval_pair(x[1], x[2])))
             ups$nmatch <- outs[,1]
             ups$nmismatch <- outs[,2]
@@ -172,8 +171,12 @@ mergePairs <- function(dadaF, derepF, dadaR, derepR, minOverlap = 12, maxMismatc
     }
     
         # Add abundance and sequence to the output data.frame
-        tab <- table(pairdf$forward, pairdf$reverse)
-        ups$abundance <- tab[cbind(ups$forward, ups$reverse)]
+        # DadaS: count reads per (forward, reverse) pair directly. The dense table(forward, reverse) had one cell
+        # per pair of ASVs (e.g. 20,000 x 20,000 = 1.6 GB) although only a few pairs occur.
+        nR <- nrow(dadaR[[i]]$clustering)
+        key.all <- (as.numeric(pairdf$forward) - 1) * nR + pairdf$reverse
+        key.ups <- (as.numeric(ups$forward) - 1) * nR + ups$reverse
+        ups$abundance <- tabulate(match(key.all, key.ups), nbins=nrow(ups))
         ups$sequence[!ups$accept] <- ""
         # Add columns from forward/reverse clustering
         propagateCol <- propagateCol[propagateCol %in% colnames(dadaF[[i]]$clustering)]

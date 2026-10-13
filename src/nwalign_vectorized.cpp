@@ -54,7 +54,11 @@ void parr(int16_t *arr, int nrow, int ncol) {
   }
 }
 
-char **nwalign_vectorized2(const char *s1, size_t len1, const char *s2, size_t len2, int16_t match, int16_t mismatch, int16_t gap_p, int16_t end_gap_p, int band) {
+
+static void nw_vec_fill(const char *&s1_io, size_t &len1_io, const char *&s2_io, size_t &len2_io, int16_t match, int16_t mismatch, int16_t gap_p, int16_t end_gap_p, int band, NWWork &w) {
+  // local copies (written back at the end): references would force reloads inside the hot loops
+  const char *s1 = s1_io, *s2 = s2_io;
+  size_t len1 = len1_io, len2 = len2_io;
   size_t row, col, ncol, nrow, foo;
   size_t i,j;
   int16_t d_free;
@@ -83,10 +87,13 @@ char **nwalign_vectorized2(const char *s1, size_t len1, const char *s2, size_t l
   //  ncol = 3 + (len1+len2+1)/2; // 3 = left boundary + center + right boundary !!!
   ncol = 2 + start_col + ((len2-len1+band)<len2 ? (len2-len1+band) : len2)/2;
   nrow = len1 + len2 + 1;
-  int16_t *d = (int16_t *) malloc(ncol * nrow * sizeof(int16_t));
-  int16_t *p = (int16_t *) malloc(ncol * nrow * sizeof(int16_t));
-  char *s1r = (char *) malloc(len1 + 1); // s1 reversed (see dploop_fused)
-  if (d == NULL || p == NULL || s1r == NULL)  dada_stop("Memory allocation failed.");
+  // DadaS: per-thread buffers reused across calls instead of a malloc/free of each DP matrix per alignment.
+  // Every cell that is read is written first (as before, the matrices were not initialized either).
+  if(w.d.size() < ncol * nrow) { w.d.resize(ncol * nrow); w.p.resize(ncol * nrow); }
+  if(w.s1r.size() < len1 + 1) { w.s1r.resize(len1 + 1); }
+  int16_t *d = w.d.data();
+  int16_t *p = w.p.data();
+  char *s1r = w.s1r.data(); // s1 reversed (see dploop_fused)
   for(i=0;i<len1;i++) { s1r[i] = s1[len1-1-i]; }
   
   // For banding issues later on
@@ -231,6 +238,21 @@ char **nwalign_vectorized2(const char *s1, size_t len1, const char *s2, size_t l
     even = 1 - even;
   }
 
+  w.ncol = ncol;
+  w.start_col = start_col;
+  w.swap = swap;
+  s1_io = s1; s2_io = s2; len1_io = len1; len2_io = len2;
+}
+
+char **nwalign_vectorized2(const char *s1, size_t len1, const char *s2, size_t len2, int16_t match, int16_t mismatch, int16_t gap_p, int16_t end_gap_p, int band) {
+  size_t i, j;
+  char *ptr_char;
+  NWWork w; // local buffers (this path is used outside the denoising loop)
+  nw_vec_fill(s1, len1, s2, len2, match, mismatch, gap_p, end_gap_p, band, w);
+  const int16_t *p = w.p.data();
+  size_t ncol = w.ncol, start_col = w.start_col, nrow = len1 + len2 + 1;
+  bool swap = w.swap;
+
 //  if(debug) {
 //    Rprintf("D MATRIX:.....\n");
 //    parr(d, len1+len2+1, ncol);
@@ -269,10 +291,6 @@ char **nwalign_vectorized2(const char *s1, size_t len1, const char *s2, size_t l
   al0[len_al] = '\0';
   al1[len_al] = '\0';
   
-  // Free DP objects
-  free(d);
-  free(p);
-  free(s1r);
   
   // Return to input ordering
   if(swap) {
@@ -300,6 +318,87 @@ char **nwalign_vectorized2(const char *s1, size_t len1, const char *s2, size_t l
   free(al1);
   
   return al;
+}
+
+
+// DadaS: same alignment as nwalign_vectorized2() followed by al2subs(), without building the two aligned
+// strings. The traceback writes the center->raw position map, the substitutions and the internal indel count
+// directly. s1 must be the center (reference) and s2 the raw, as in sub_new(). Results are identical to
+// al2subs(nwalign_vectorized2(...)): checked pair by pair with C_check_fused_subs() on the test data.
+Sub *nwalign_vectorized2_sub(const char *s1, size_t len1, const char *s2, size_t len2, int16_t match, int16_t mismatch, int16_t gap_p, int16_t end_gap_p, int band, NWWork *wp) {
+  const char *c = s1, *r = s2;         // center and raw, before any swap
+  size_t lenc = len1;
+  NWWork wlocal;
+  NWWork &w = wp ? *wp : wlocal;       // caller's reusable buffers, or temporary ones
+  nw_vec_fill(s1, len1, s2, len2, match, mismatch, gap_p, end_gap_p, band, w);
+  const int16_t *p = w.p.data();
+  size_t ncol = w.ncol, start_col = w.start_col;
+  bool swap = w.swap;
+
+  // Traceback (same moves as nwalign_vectorized2). Columns are recorded from the end of the alignment.
+  size_t maxcols = len1 + len2;
+  if(w.colc.size() < maxcols) { w.colc.resize(maxcols); w.colr.resize(maxcols); }
+  int *cc = w.colc.data(), *cr = w.colr.data(); // center / raw position of each column, -1 = gap
+  size_t ncolumns = 0;
+  long i = len1, j = len2, a, b;
+  while ( i > 0 || j > 0 ) {
+    switch ( p[(i+j)*ncol + (2*start_col+j-i)/2] ) {
+      case 1: a = --i; b = --j; break;
+      case 2: a = -1;  b = --j; break;
+      case 3: a = --i; b = -1;  break;
+      default:
+        dada_stop("N-W Align out of range: len1/2=(%i, %i), ij=(%i,%i).", (int) len1, (int) len2, (int) i, (int) j);
+    }
+    if(swap) { cc[ncolumns] = (int) b; cr[ncolumns] = (int) a; } // s1/s2 were swapped: s1 is the raw
+    else     { cc[ncolumns] = (int) a; cr[ncolumns] = (int) b; }
+    ncolumns++;
+  }
+
+  // Count substitutions; find the first and last columns where both sequences have a nucleotide
+  unsigned int nsubs = 0;
+  long first = -1, last = -1; // in forward column order
+  for(size_t k=0; k<ncolumns; k++) {
+    size_t f = ncolumns - 1 - k; // forward index of this recorded column
+    int pc = cc[k], pr = cr[k];
+    if(pc >= 0 && pr >= 0) {
+      if(c[pc] != r[pr] && c[pc] != 5 && r[pr] != 5) nsubs++;
+      if(last < 0) last = (long) f;
+      first = (long) f;
+    }
+  }
+  Sub *sub = (Sub *) malloc(sizeof(Sub)); //E
+  if (sub == NULL)  dada_stop("Memory allocation failed.");
+  sub->len0 = lenc;
+  sub->map = (uint16_t *) malloc(lenc * sizeof(uint16_t)); //E
+  sub->pos = (uint16_t *) malloc(nsubs * sizeof(uint16_t)); //E
+  sub->nt0 = (char *) malloc(nsubs); //E
+  sub->nt1 = (char *) malloc(nsubs); //E
+  if (sub->map == NULL || sub->pos == NULL || sub->nt0 == NULL || sub->nt1 == NULL) {
+    dada_stop("Memory allocation failed.");
+  }
+  // Forward pass: map, substitutions in center order, internal indel events (gap runs between first and last)
+  unsigned int s = 0, nindel = 0;
+  bool prev_gap = false;
+  for(size_t f=0; f<ncolumns; f++) {
+    size_t k = ncolumns - 1 - f;
+    int pc = cc[k], pr = cr[k];
+    if(pc >= 0) {
+      sub->map[pc] = (pr >= 0) ? (uint16_t) pr : GAP_GLYPH;
+      if(pr >= 0 && c[pc] != r[pr] && c[pc] != 5 && r[pr] != 5) {
+        sub->pos[s] = (uint16_t) pc; sub->nt0[s] = c[pc]; sub->nt1[s] = r[pr]; s++;
+      }
+    }
+    if(first >= 0 && (long) f >= first && (long) f <= last) {
+      bool gap = (pc < 0) || (pr < 0);
+      if(gap && !prev_gap) { nindel++; }
+      prev_gap = gap;
+    }
+  }
+  sub->nsubs = nsubs;
+  sub->nindel = nindel;
+  sub->q0 = NULL;
+  sub->q1 = NULL;
+  return sub;
 }
 
 // [[Rcpp::export]]

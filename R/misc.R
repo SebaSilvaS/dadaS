@@ -342,3 +342,35 @@ getSRR <- Vectorize(function(run, outdir="sra", verbose=TRUE, ...) {
 
 
 
+
+################################################################################
+#' Number of CPU threads available to this R process (DadaS)
+#'
+#' Used when \code{multithread = TRUE}. On a shared HPC node, \code{parallel::detectCores()} (used by DADA2)
+#' reports every core of the node, not the cores allocated to the job, so a job could start far more
+#' threads than it was given. This function returns the smallest of: the Slurm allocation
+#' (\code{SLURM_CPUS_PER_TASK}), the CPU affinity of the process (Linux), and \code{detectCores()}.
+#' The number of threads never changes DadaS results, only speed.
+#'
+#' @return \code{integer(1)}, at least 1.
+#' @export
+#' @examples
+#' availableThreads()
+availableThreads <- function() {
+  n <- c(parallel::detectCores())
+  slurm <- suppressWarnings(as.integer(Sys.getenv("SLURM_CPUS_PER_TASK", "")))
+  if(!is.na(slurm) && slurm > 0) n <- c(n, slurm)
+  aff <- tryCatch({
+    st <- readLines("/proc/self/status", warn = FALSE)
+    lst <- sub("^Cpus_allowed_list:\\s*", "", st[grepl("^Cpus_allowed_list:", st)])
+    if(length(lst) != 1) NA_integer_ else {
+      sum(vapply(strsplit(strsplit(lst, ",")[[1]], "-"), function(r) {
+        r <- as.integer(r); if(length(r) == 2) r[2] - r[1] + 1L else 1L
+      }, integer(1)))
+    }
+  }, error = function(e) NA_integer_, warning = function(w) NA_integer_)
+  if(!is.na(aff) && aff > 0) n <- c(n, aff)
+  n <- suppressWarnings(min(n, na.rm = TRUE))
+  if(!is.finite(n) || n < 1) n <- 1L
+  as.integer(n)
+}

@@ -88,7 +88,8 @@ After truncation, sequences with more than \code{maxN} Ns will be discarded.
 Note that \code{\link{dada}} does not allow Ns.}
 
 \item{minQ}{(Optional). Default 0.
-After truncation, reads contain a quality score less than \code{minQ} will be discarded.}
+After truncation, reads that contain a quality score less than or equal to \code{minQ} are discarded
+(DadaS: documentation corrected to match the code, which keeps reads whose minimum is above \code{minQ}).}
 
 \item{maxEE}{(Optional). Default \code{Inf} (no EE filtering).
 After truncation, reads with higher than \code{maxEE} "expected errors" will be discarded.

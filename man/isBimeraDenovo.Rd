@@ -24,7 +24,8 @@ Only sequences greater than this-fold more abundant than a sequence can be its
 "parents".}
 
 \item{minParentAbundance}{(Optional). A \code{numeric(1)}. Default is 8.
-Only sequences at least this abundant can be "parents".}
+Only sequences more abundant than this can be "parents" (strictly greater; note that
+\code{\link{isBimeraDenovoTable}} uses "at least this abundant").}
 
 \item{allowOneOff}{(Optional). A \code{logical(1)}. Default is FALSE.
 If FALSE, sequences that have one mismatch or indel to an exact bimera are also

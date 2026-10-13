@@ -140,6 +140,33 @@ typedef struct {
   Bi **bi;
 } B;
 
+/* DadaS: alignment cache for repeated dada() runs on the same sample (selfConsist rounds of learnErrors).
+   An alignment does not depend on the error model, only lambda does. For each partition center (keyed by its
+   unique index) and each unique, the cache keeps the outcome of the k-mer screen and the number of substitutions:
+     255 = not computed, 254 = k-mer screen failed (NULL sub), 0..253 = number of substitutions (capped).
+   In a later round, a comparison is skipped when that result proves it cannot matter:
+     - a failed k-mer screen gives a NULL sub and lambda = 0, exactly as recomputing it would;
+     - otherwise lambda <= emax^nsubs (emax = largest substitution rate at the unique's quality scores), and if
+       even that bound cannot pass the storage test lambda * reads > E_minmax, the comparison is never stored.
+   Skipped comparisons are exactly those whose result would have been discarded, so outputs are identical. */
+struct AlignCache {
+  unsigned int nraw = 0;
+  std::unordered_map<unsigned int, std::vector<uint8_t> > by_center;
+};
+// DadaS: reusable work buffers for the vectorized aligner. Callers that align many pairs (the compare loops)
+// keep one per thread and pass it down, which avoids a malloc/free of the DP matrices per alignment.
+struct NWWork {
+  std::vector<int16_t> d, p;
+  std::vector<char> s1r;
+  std::vector<int> colc, colr;
+  size_t ncol = 0, start_col = 0;
+  bool swap = false;
+};
+
+#define CACHE_UNKNOWN 255
+#define CACHE_NULLSUB 254
+#define CACHE_MAXSUBS 253
+
 /* -------------------------------------------
    -------- METHODS METHODS METHODS ----------
    ------------------------------------------- */
@@ -157,8 +184,8 @@ Raw *bi_pop_raw(Bi *bi, unsigned int r);
 unsigned int bi_add_raw(Bi *bi, Raw *raw);
 
 // methods implemented in cluster.cpp
-void b_compare(B *b, unsigned int i, Rcpp::NumericMatrix errMat, int match, int mismatch, int gap_pen, int homo_gap_pen, bool use_kmers, double kdist_cutoff, int band_size, bool vectorized_alignment, int SSE, bool gapless, bool greedy, bool verbose);
-void b_compare_parallel(B *b, unsigned int i, Rcpp::NumericMatrix errMat, int match, int mismatch, int gap_pen, int homo_gap_pen, bool use_kmers, double kdist_cutoff, int band_size, bool vectorized_alignment, int SSE, bool gapless, bool greedy, bool verbose);
+void b_compare(B *b, unsigned int i, Rcpp::NumericMatrix errMat, int match, int mismatch, int gap_pen, int homo_gap_pen, bool use_kmers, double kdist_cutoff, int band_size, bool vectorized_alignment, int SSE, bool gapless, bool greedy, bool verbose, AlignCache *cache, const double *emax);
+void b_compare_parallel(B *b, unsigned int i, Rcpp::NumericMatrix errMat, int match, int mismatch, int gap_pen, int homo_gap_pen, bool use_kmers, double kdist_cutoff, int band_size, bool vectorized_alignment, int SSE, bool gapless, bool greedy, bool verbose, AlignCache *cache, const double *emax);
 bool b_shuffle2(B *b);
 // void b_p_update_parallel(B *b);
 int b_bud(B *b, double min_fold, int min_hamming, int min_abund, bool verbose);
@@ -181,10 +208,11 @@ char **nwalign_endsfree(const char *s1, size_t len1, const char *s2, size_t len2
 char **nwalign_endsfree_homo(const char *s1, size_t len1, const char *s2, size_t len2, int score[4][4], int gap_p, int gap_homo_p, int band);
 char **nwalign_vectorized2(const char *s1, size_t len1, const char *s2, size_t len2, int16_t match, int16_t mismatch, int16_t gap_p, int16_t end_gap_p, int band);
 char **nwalign_gapless(const char *s1, size_t len1, const char *s2, size_t len2);
+Sub *nwalign_vectorized2_sub(const char *s1, size_t len1, const char *s2, size_t len2, int16_t match, int16_t mismatch, int16_t gap_p, int16_t end_gap_p, int band, NWWork *w = NULL);
 char **raw_align(Raw *raw1, Raw *raw2, int match, int mismatch, int gap_p, int homo_gap_p, bool use_kmers, 
                  double kdist_cutoff, int band, bool vectorized_alignment, int SSE, bool gapless);
 Sub *sub_new(Raw *raw0, Raw *raw1, int match, int mismatch, int gap_p, int homo_gap_p, bool use_kmers, double kdist_cutoff, 
-             int band, bool vectorized_alignment, int SSE, bool gapless);
+             int band, bool vectorized_alignment, int SSE, bool gapless, NWWork *w = NULL);
 Sub *al2subs(char **al);
 Sub *sub_copy(Sub *sub);
 void sub_free(Sub *sub);

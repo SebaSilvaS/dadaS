@@ -123,7 +123,7 @@ assignTaxonomy <- function(seqs, refFasta, minBoot=50, tryRC=FALSE, outputBootst
   ### Assign
   # Parse multithreading argument
   if(is.logical(multithread)) {
-    if(multithread==TRUE) { RcppParallel::setThreadOptions(numThreads = "auto") }
+    if(multithread==TRUE) { RcppParallel::setThreadOptions(numThreads = availableThreads()) } # DadaS: was "auto"
     else { RcppParallel::setThreadOptions(numThreads = 1) }
   } else if(is.numeric(multithread)) {
     RcppParallel::setThreadOptions(numThreads = multithread)

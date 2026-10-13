@@ -308,7 +308,8 @@ filt.print <- function(inseqs, outseqs) {
 #'  Note that \code{\link{dada}} does not allow Ns.
 #'  
 #' @param minQ (Optional). Default 0.
-#'  After truncation, reads contain a quality score less than \code{minQ} will be discarded.
+#'  After truncation, reads that contain a quality score less than or equal to \code{minQ} are discarded
+#'  (DadaS: documentation corrected to match the code, which keeps reads whose minimum is above \code{minQ}).
 #'
 #' @param maxEE (Optional). Default \code{Inf} (no EE filtering).
 #'  After truncation, reads with higher than \code{maxEE} "expected errors" will be discarded.
@@ -446,7 +447,7 @@ filterAndTrim <- function(fwd, filt, rev=NULL, filt.rev=NULL, compress=TRUE,
   # Parse multithreading
   if(multithread && .Platform$OS.type=="unix") {
     OMP <- FALSE
-    ncores <- detectCores()
+    ncores <- availableThreads() # DadaS: was detectCores(), i.e. every core of the node
     if(is.numeric(multithread)) ncores <- multithread
     if(is.na(ncores)) ncores <- 1
     if(ncores>1) verbose <- FALSE
@@ -532,7 +533,7 @@ filterAndTrim <- function(fwd, filt, rev=NULL, filt.rev=NULL, compress=TRUE,
 #'  Note that \code{\link{dada}} currently does not allow Ns.
 #'  
 #' @param minQ (Optional). Default 0.
-#'  After truncation, reads contain a quality score below minQ will be discarded.
+#'  After truncation, reads that contain a quality score less than or equal to minQ are discarded.
 #'
 #' @param maxEE (Optional). Default \code{Inf} (no EE filtering).
 #'  After truncation, reads with higher than maxEE "expected errors" will be discarded.
@@ -772,7 +773,7 @@ fastqFilter <- function(fn, fout, truncQ = 2, truncLen = 0, maxLen = Inf, minLen
 #'  Note that \code{\link{dada}} currently does not allow Ns.
 #'  
 #' @param minQ (Optional). Default 0.
-#'  After truncation, reads contain a quality score below minQ will be discarded.
+#'  After truncation, reads that contain a quality score less than or equal to minQ are discarded.
 #'
 #' @param maxEE (Optional). Default \code{Inf} (no EE filtering).
 #'  After truncation, reads with higher than maxEE "expected errors" will be discarded.

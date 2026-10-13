@@ -7,15 +7,12 @@
  * Banded Needleman Wunsch
  */
 
-char **raw_align(Raw *raw1, Raw *raw2, int match, int mismatch, int gap_p, int homo_gap_p, bool use_kmers, double kdist_cutoff, int band, bool vectorized_alignment, int SSE, bool gapless) {
-  char **al;
+// DadaS: the routing decision of raw_align() (k-mer screen, gapless shortcut, which aligner), shared by
+// raw_align() and sub_new() so both take exactly the same path.
+// Returns 0 = no alignment (k-mer screen), 1 = gapless, 2 = vectorized, 3 = homopolymer, 4 = ends-free.
+static int align_route(Raw *raw1, Raw *raw2, int gap_p, int homo_gap_p, bool use_kmers, double kdist_cutoff, int band, bool vectorized_alignment, int SSE, bool gapless) {
   double kdist = 0.0;
   double kodist = -1.0; // Needs to be different than kdist for fall-back when use_kmers=FALSE
-/// Commented lines relate to testing of add'l speedups
-///  static size_t nnw=0;
-///  static size_t ngl=0;
-///  static size_t nkm=0;
-///  static size_t REPORT=1000;
 
   // KMER SCREEN
   if(use_kmers) {
@@ -40,6 +37,20 @@ char **raw_align(Raw *raw1, Raw *raw2, int match, int mismatch, int gap_p, int h
     }
   }
   
+  if(use_kmers && kdist > kdist_cutoff) {
+    return 0;
+  } else if(band == 0 || (gapless && kodist == kdist)) {
+    return 1;
+  } else if(vectorized_alignment) { 
+    return 2;
+  } else if(homo_gap_p != gap_p && homo_gap_p <= 0) {
+    return 3;
+  } else {
+    return 4;
+  }
+}
+
+char **raw_align(Raw *raw1, Raw *raw2, int match, int mismatch, int gap_p, int homo_gap_p, bool use_kmers, double kdist_cutoff, int band, bool vectorized_alignment, int SSE, bool gapless) {
   // Make deprecated score matrix. To be removed in the future.
   int score[4][4];
   for(int i=0;i<4;i++) {
@@ -47,29 +58,13 @@ char **raw_align(Raw *raw1, Raw *raw2, int match, int mismatch, int gap_p, int h
       score[i][j] = i==j ? match : mismatch;
     }
   }
-  
-  if(use_kmers && kdist > kdist_cutoff) {
-    al = NULL;
-///    nkm++;
-  } else if(band == 0 || (gapless && kodist == kdist)) {
-    al = nwalign_gapless(raw1->seq, raw1->length, raw2->seq, raw2->length);
-///    ngl++;
-  } else if(vectorized_alignment) { 
-    al = nwalign_vectorized2(raw1->seq, raw1->length, raw2->seq, raw2->length, (int16_t) match, (int16_t) mismatch, (int16_t) gap_p, 0, band);
-///    nnw++;
-  } else if(homo_gap_p != gap_p && homo_gap_p <= 0) {
-    al = nwalign_endsfree_homo(raw1->seq, raw1->length, raw2->seq, raw2->length, score, gap_p, homo_gap_p, band); // USES OLD SCORE_MATRIX FORMAT
-///    nnw++;
-  } else {
-    al = nwalign_endsfree(raw1->seq, raw1->length, raw2->seq, raw2->length, score, gap_p, band); // USES OLD SCORE_MATRIX FORMAT
-///    nnw++;
+  switch(align_route(raw1, raw2, gap_p, homo_gap_p, use_kmers, kdist_cutoff, band, vectorized_alignment, SSE, gapless)) {
+    case 0: return NULL;
+    case 1: return nwalign_gapless(raw1->seq, raw1->length, raw2->seq, raw2->length);
+    case 2: return nwalign_vectorized2(raw1->seq, raw1->length, raw2->seq, raw2->length, (int16_t) match, (int16_t) mismatch, (int16_t) gap_p, 0, band);
+    case 3: return nwalign_endsfree_homo(raw1->seq, raw1->length, raw2->seq, raw2->length, score, gap_p, homo_gap_p, band); // USES OLD SCORE_MATRIX FORMAT
+    default: return nwalign_endsfree(raw1->seq, raw1->length, raw2->seq, raw2->length, score, gap_p, band); // USES OLD SCORE_MATRIX FORMAT
   }
-
-///  if((nkm+ngl+nnw) == REPORT) {
-///    REPORT = REPORT*2;
-///    Rprintf("NW: %i, KMER: %i, GAPLESS: %i\n", nnw, nkm, ngl);
-///  }
-  return al;
 }
 
 /* note: input sequence must end with string termination character, '\0' */
@@ -656,13 +651,19 @@ Sub *al2subs(char **al) {
 }
 
 // Wrapper for al2subs(raw_align(...)) that manages memory and qualities
-Sub *sub_new(Raw *raw0, Raw *raw1, int match, int mismatch, int gap_p, int homo_gap_p, bool use_kmers, double kdist_cutoff, int band, bool vectorized_alignment, int SSE, bool gapless) {
+Sub *sub_new(Raw *raw0, Raw *raw1, int match, int mismatch, int gap_p, int homo_gap_p, bool use_kmers, double kdist_cutoff, int band, bool vectorized_alignment, int SSE, bool gapless, NWWork *w) {
   int s;
   char **al;
   Sub *sub;
 
-  al = raw_align(raw0, raw1, match, mismatch, gap_p, homo_gap_p, use_kmers, kdist_cutoff, band, vectorized_alignment, SSE, gapless);
-  sub = al2subs(al);
+  // DadaS: the vectorized path (almost every alignment) builds the Sub directly in the traceback
+  if(align_route(raw0, raw1, gap_p, homo_gap_p, use_kmers, kdist_cutoff, band, vectorized_alignment, SSE, gapless) == 2) {
+    al = NULL;
+    sub = nwalign_vectorized2_sub(raw0->seq, raw0->length, raw1->seq, raw1->length, (int16_t) match, (int16_t) mismatch, (int16_t) gap_p, 0, band, w);
+  } else {
+    al = raw_align(raw0, raw1, match, mismatch, gap_p, homo_gap_p, use_kmers, kdist_cutoff, band, vectorized_alignment, SSE, gapless);
+    sub = al2subs(al);
+  }
 
   if(sub) {
     sub->q0 = NULL;
