@@ -5,8 +5,8 @@
 #' @importFrom Rcpp evalCpp
 NULL
 
-dada_uniques <- function(seqs, abundances, priors, err, quals, match, mismatch, gap, use_kmers, kdist_cutoff, band_size, omegaA, omegaP, omegaC, detect_singletons, max_clust, min_fold, min_hamming, min_abund, use_quals, final_consensus, vectorized_alignment, homo_gap, multithread, verbose, SSE, gapless, greedy, indel_rate, align_cache) {
-    .Call('_dadaS_dada_uniques', PACKAGE = 'dadaS', seqs, abundances, priors, err, quals, match, mismatch, gap, use_kmers, kdist_cutoff, band_size, omegaA, omegaP, omegaC, detect_singletons, max_clust, min_fold, min_hamming, min_abund, use_quals, final_consensus, vectorized_alignment, homo_gap, multithread, verbose, SSE, gapless, greedy, indel_rate, align_cache)
+dada_uniques <- function(seqs, abundances, priors, err, quals, match, mismatch, gap, use_kmers, kdist_cutoff, band_size, omegaA, omegaP, omegaC, detect_singletons, max_clust, min_fold, min_hamming, min_abund, use_quals, final_consensus, vectorized_alignment, homo_gap, multithread, verbose, SSE, gapless, greedy, indel_rate, align_cache, qh_values, qh_index, qh_counts) {
+    .Call('_dadaS_dada_uniques', PACKAGE = 'dadaS', seqs, abundances, priors, err, quals, match, mismatch, gap, use_kmers, kdist_cutoff, band_size, omegaA, omegaP, omegaC, detect_singletons, max_clust, min_fold, min_hamming, min_abund, use_quals, final_consensus, vectorized_alignment, homo_gap, multithread, verbose, SSE, gapless, greedy, indel_rate, align_cache, qh_values, qh_index, qh_counts)
 }
 
 dada_align_cache_new <- function() {

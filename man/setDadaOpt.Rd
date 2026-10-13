@@ -73,6 +73,16 @@ GREEDY: The DADA2 algorithm is not greedy, but a very restricted form of greedin
  by resequencing just the central unique in their partition are "locked" to that partition.
  Modest (~30\%) speedup, and almost no impact on output. Default is TRUE.
 
+PER_READ_QUALS (DadaS): If TRUE, the error model uses the quality scores of each read instead of
+ the average quality of each unique sequence. DADA2 averages the qualities of all reads of a unique
+ and rounds them; with binned quality scores (NovaSeq/NextSeq) that average is coupled with abundance
+ (single-read uniques keep the top bin, abundant ones fall between bins), which distorts the learned
+ error rates. With PER_READ_QUALS, the probability of each position is the average over the unique's
+ reads of the error rate at each read's quality, and transitions are counted at each read's quality.
+ Requires derep objects from \code{derepFastq(..., qualityHistogram = TRUE)} (file paths given to
+ \code{dada} or \code{learnErrors} are dereplicated that way automatically). Default FALSE
+ (identical to DADA2). Changes results when TRUE.
+
 INDEL_RATE (DadaS): The per-event error rate of internal indels. DADA2 ignores indels when computing
  the probability that a sequence was produced by errors from its partition center, so variants that
  differ only by indels are never split. If INDEL_RATE > 0, each internal indel event (a run of gap

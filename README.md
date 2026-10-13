@@ -4,24 +4,35 @@ A faster, more robust fork of [DADA2](https://github.com/benjjneb/dada2) 1.36.0.
 
 - **Same results by default.** With default options every step (filtering, error learning,
   denoising, merging, chimera removal) gives output identical to DADA2. The exception is taxonomy
-  bootstrap values, which are now reproducible with `set.seed()`.
-- **Faster.** About 1.6× for the whole pipeline on 7 NextSeq sediment samples (2.05 M read
-  pairs), up to 2.1× for chimera removal. Includes NEON SIMD on Apple Silicon / ARM.
-- **More robust.** Thread-safe error handling, and taxonomy results that do not depend on the
-  thread count.
+  bootstrap values, which are reproducible with `set.seed()` and independent of the thread count.
+- **Faster.** On 7 NextSeq sediment samples (2.05 M read pairs, 2 cores) the whole pipeline takes
+  2 h 36 min, against 6 h 16 min with DADA2 (2.4×). Most of the gain is in `learnErrors` (3.1×),
+  which reuses alignments between its rounds, and in chimera removal (2.1×). Includes NEON SIMD on
+  Apple Silicon / ARM.
+- **More robust.** Fixes several DADA2 failures: `USE_QUALS = FALSE`, `assignTaxonomy` with very short
+  sequences, option validation in `setDadaOpt`, `mergePairs` leaving the session's alignment scores
+  changed after an error, memory leaked when `dada()` fails or is interrupted, and errors raised from
+  worker threads.
+- **HPC-ready.** With `multithread = TRUE` the number of threads follows the Slurm allocation
+  (`SLURM_CPUS_PER_TASK`) and the CPU affinity of the process, see `availableThreads()`, instead of
+  every core of the node.
 - **Optional extensions, off by default:**
   - `setDadaOpt(INDEL_RATE = ...)` lets abundant indel-only variants form their own ASVs.
   - `indelOnlyVariants()` and `estimateIndelRate()` diagnose indel variants and estimate a rate.
   - `loessErrfunMonotone()` is an error function for binned quality scores.
 
 The package is named `dadaS`, so it installs alongside `dada2` and the two can be compared directly.
-See [REVIEW.md](REVIEW.md) for every change, its rationale and how it was verified.
+See [REVIEW.md](REVIEW.md) for every change, its rationale and how it was verified, and [NEWS](NEWS)
+for the version history.
 
 ```r
-# from a clone of this repository
-install.packages(".", repos = NULL, type = "source")
+# from a clone of this repository (a clean build: stale object files in src/ are rebuilt)
+install.packages(".", repos = NULL, type = "source", INSTALL_opts = "--preclean")
 library(dadaS)   # same API as dada2
 ```
+
+Tests: `Rscript -e 'testthat::test_local(".")'` (55 expectations; the comparison against DADA2 runs
+when `dada2` is installed).
 
 All credit for DADA2 goes to its authors (Callahan et al., 2016). The original README follows.
 

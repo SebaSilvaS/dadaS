@@ -14,8 +14,8 @@ Rcpp::Rostream<false>& Rcpp::Rcerr = Rcpp::Rcpp_cerr_get();
 #endif
 
 // dada_uniques
-Rcpp::List dada_uniques(std::vector< std::string > seqs, std::vector<int> abundances, std::vector<bool> priors, Rcpp::NumericMatrix err, Rcpp::NumericMatrix quals, int match, int mismatch, int gap, bool use_kmers, double kdist_cutoff, int band_size, double omegaA, double omegaP, double omegaC, bool detect_singletons, int max_clust, double min_fold, int min_hamming, int min_abund, bool use_quals, bool final_consensus, bool vectorized_alignment, int homo_gap, bool multithread, bool verbose, int SSE, bool gapless, bool greedy, double indel_rate, SEXP align_cache);
-RcppExport SEXP _dadaS_dada_uniques(SEXP seqsSEXP, SEXP abundancesSEXP, SEXP priorsSEXP, SEXP errSEXP, SEXP qualsSEXP, SEXP matchSEXP, SEXP mismatchSEXP, SEXP gapSEXP, SEXP use_kmersSEXP, SEXP kdist_cutoffSEXP, SEXP band_sizeSEXP, SEXP omegaASEXP, SEXP omegaPSEXP, SEXP omegaCSEXP, SEXP detect_singletonsSEXP, SEXP max_clustSEXP, SEXP min_foldSEXP, SEXP min_hammingSEXP, SEXP min_abundSEXP, SEXP use_qualsSEXP, SEXP final_consensusSEXP, SEXP vectorized_alignmentSEXP, SEXP homo_gapSEXP, SEXP multithreadSEXP, SEXP verboseSEXP, SEXP SSESEXP, SEXP gaplessSEXP, SEXP greedySEXP, SEXP indel_rateSEXP, SEXP align_cacheSEXP) {
+Rcpp::List dada_uniques(std::vector< std::string > seqs, std::vector<int> abundances, std::vector<bool> priors, Rcpp::NumericMatrix err, Rcpp::NumericMatrix quals, int match, int mismatch, int gap, bool use_kmers, double kdist_cutoff, int band_size, double omegaA, double omegaP, double omegaC, bool detect_singletons, int max_clust, double min_fold, int min_hamming, int min_abund, bool use_quals, bool final_consensus, bool vectorized_alignment, int homo_gap, bool multithread, bool verbose, int SSE, bool gapless, bool greedy, double indel_rate, SEXP align_cache, std::vector<int> qh_values, std::vector<int> qh_index, std::vector<int> qh_counts);
+RcppExport SEXP _dadaS_dada_uniques(SEXP seqsSEXP, SEXP abundancesSEXP, SEXP priorsSEXP, SEXP errSEXP, SEXP qualsSEXP, SEXP matchSEXP, SEXP mismatchSEXP, SEXP gapSEXP, SEXP use_kmersSEXP, SEXP kdist_cutoffSEXP, SEXP band_sizeSEXP, SEXP omegaASEXP, SEXP omegaPSEXP, SEXP omegaCSEXP, SEXP detect_singletonsSEXP, SEXP max_clustSEXP, SEXP min_foldSEXP, SEXP min_hammingSEXP, SEXP min_abundSEXP, SEXP use_qualsSEXP, SEXP final_consensusSEXP, SEXP vectorized_alignmentSEXP, SEXP homo_gapSEXP, SEXP multithreadSEXP, SEXP verboseSEXP, SEXP SSESEXP, SEXP gaplessSEXP, SEXP greedySEXP, SEXP indel_rateSEXP, SEXP align_cacheSEXP, SEXP qh_valuesSEXP, SEXP qh_indexSEXP, SEXP qh_countsSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -49,7 +49,10 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< bool >::type greedy(greedySEXP);
     Rcpp::traits::input_parameter< double >::type indel_rate(indel_rateSEXP);
     Rcpp::traits::input_parameter< SEXP >::type align_cache(align_cacheSEXP);
-    rcpp_result_gen = Rcpp::wrap(dada_uniques(seqs, abundances, priors, err, quals, match, mismatch, gap, use_kmers, kdist_cutoff, band_size, omegaA, omegaP, omegaC, detect_singletons, max_clust, min_fold, min_hamming, min_abund, use_quals, final_consensus, vectorized_alignment, homo_gap, multithread, verbose, SSE, gapless, greedy, indel_rate, align_cache));
+    Rcpp::traits::input_parameter< std::vector<int> >::type qh_values(qh_valuesSEXP);
+    Rcpp::traits::input_parameter< std::vector<int> >::type qh_index(qh_indexSEXP);
+    Rcpp::traits::input_parameter< std::vector<int> >::type qh_counts(qh_countsSEXP);
+    rcpp_result_gen = Rcpp::wrap(dada_uniques(seqs, abundances, priors, err, quals, match, mismatch, gap, use_kmers, kdist_cutoff, band_size, omegaA, omegaP, omegaC, detect_singletons, max_clust, min_fold, min_hamming, min_abund, use_quals, final_consensus, vectorized_alignment, homo_gap, multithread, verbose, SSE, gapless, greedy, indel_rate, align_cache, qh_values, qh_index, qh_counts));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -311,7 +314,7 @@ RcppExport SEXP _dadaS_RcppExport_registerCCallable() {
 }
 
 static const R_CallMethodDef CallEntries[] = {
-    {"_dadaS_dada_uniques", (DL_FUNC) &_dadaS_dada_uniques, 30},
+    {"_dadaS_dada_uniques", (DL_FUNC) &_dadaS_dada_uniques, 33},
     {"_dadaS_dada_align_cache_new", (DL_FUNC) &_dadaS_dada_align_cache_new, 0},
     {"_dadaS_dada_align_cache_size", (DL_FUNC) &_dadaS_dada_align_cache_size, 1},
     {"_dadaS_C_is_bimera", (DL_FUNC) &_dadaS_C_is_bimera, 8},

@@ -4,7 +4,13 @@
 \alias{derepFastq}
 \title{Read in and dereplicate a fastq file.}
 \usage{
-derepFastq(fls, n = 1e+06, verbose = FALSE, qualityType = "Auto")
+derepFastq(
+  fls,
+  n = 1e+06,
+  verbose = FALSE,
+  qualityType = "Auto",
+  qualityHistogram = FALSE
+)
 }
 \arguments{
 \item{fls}{(Required). \code{character}.
@@ -29,6 +35,13 @@ attempt to auto-detect the encoding. This may fail for PacBio files with
 uniformly high quality scores, in which case use "FastqQuality". This
 parameter is passed on to \code{\link[ShortRead]{readFastq}}; see
 information there for details.}
+
+\item{qualityHistogram}{(Optional). Default FALSE. DadaS.
+If TRUE, the file is read a second time to record, for every unique sequence with more than one
+read, how many of its reads have each quality score at each position (\code{$qhist}). This is
+required by the per-read quality error model (\code{setDadaOpt(PER_READ_QUALS = TRUE)}), which
+avoids averaging quality scores across the reads of a unique. Intended for binned quality scores
+(NovaSeq/NextSeq, a handful of distinct values); with many distinct values the histogram is large.}
 }
 \value{
 A \code{\link{derep-class}} object or list of such objects.
