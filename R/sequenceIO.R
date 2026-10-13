@@ -115,7 +115,8 @@ derepFastq <- function(fls, n = 1e6, verbose = FALSE, qualityType = "Auto", qual
     }
     close(f)
     derepO <- list(uniques=derepCounts, quals=derepQuals, map=derepMap)
-    if(qualityHistogram) derepO$qhist <- qualHistogram(fl, derepO, n = n, qualityType = qualityType) # DadaS
+    # DadaS: the second pass reads in chunks of at most 50,000 reads to bound peak memory
+    if(qualityHistogram) derepO$qhist <- qualHistogram(fl, derepO, n = min(n, 5e4), qualityType = qualityType)
     derepO <- as(derepO, "derep")
     rval[[i]] <- derepO
   }
@@ -177,7 +178,7 @@ qualHistogram <- function(fl, derep, n = 1e6, qualityType = "Auto") {
   arr <- array(0L, dim = c(length(idx), L, length(vals)))
   for(k in seq_along(vals)) arr[, , k] <- counts[[as.character(vals[k])]]
   # every read of a unique covers all positions of its sequence
-  tot <- apply(arr, c(1, 2), sum)
+  tot <- rowSums(arr, dims = 2)
   lens <- nchar(names(uq)[idx])
   expect <- outer(unname(uq[idx]), seq_len(L), function(a, p) a) * outer(lens, seq_len(L), ">=")
   if(!identical(as.numeric(tot), as.numeric(expect))) stop("Quality histogram does not match the dereplicated read counts.")
