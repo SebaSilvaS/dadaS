@@ -241,13 +241,21 @@ dada <- function(derep,
   
   # Parse multithreading argument
   if(is.logical(multithread)) {
-    if(multithread==TRUE) { RcppParallel::setThreadOptions(numThreads = "auto") }
+    if(multithread==TRUE) { RcppParallel::setThreadOptions(numThreads = availableThreads()) } # DadaS: was "auto" (all cores of the node)
   } else if(is.numeric(multithread)) {
     RcppParallel::setThreadOptions(numThreads = multithread)
     multithread <- TRUE
   } else {
     if(verbose) message("Invalid multithread parameter. Running as a single thread.")
     multithread <- FALSE
+  }
+
+  # DadaS: when the same samples are denoised several times (selfConsist rounds, pseudo-pooling), keep one
+  # alignment cache per sample so that later rounds can skip comparisons whose result is known to be discarded.
+  # Outputs are identical with or without it; options(dadaS.alignCache = FALSE) turns it off.
+  caches <- NULL
+  if((selfConsist || pseudo) && isTRUE(getOption("dadaS.alignCache", TRUE))) {
+    caches <- lapply(seq_along(derep), function(i) dada_align_cache_new())
   }
 
   # Initialize
@@ -337,16 +345,18 @@ dada <- function(derep,
         }
       }
       
+      # DadaS: quals may be absent when USE_QUALS=FALSE (an empty matrix tells the C++ side there are none)
+      qmat <- if(is.null(drpi$quals)) matrix(0, nrow=0, ncol=0) else unname(t(drpi$quals)) # Transpose so that sequences are columns
       res <- dada_uniques(names(drpi$uniques), unname(drpi$uniques), names(drpi$uniques) %in% c(priors, pseudo_priors),
                           erri,
-                          unname(t(drpi$quals)), # Transpose so that sequences are columns
+                          qmat,
                           opts[["MATCH"]], opts[["MISMATCH"]], opts[["GAP_PENALTY"]],
                           opts[["USE_KMERS"]], opts[["KDIST_CUTOFF"]],
                           opts[["BAND_SIZE"]],
                           opts[["OMEGA_A"]], opts[["OMEGA_P"]], opts[["OMEGA_C"]], opts[["DETECT_SINGLETONS"]],
                           if(initializeErr) { 1 } else { opts[["MAX_CLUST"]] },
                           opts[["MIN_FOLD"]], opts[["MIN_HAMMING"]], opts[["MIN_ABUNDANCE"]],
-                          TRUE, #opts[["USE_QUALS"]],
+                          opts[["USE_QUALS"]], # DadaS: was hard-coded TRUE, which made USE_QUALS=FALSE fail
                           FALSE,
                           opts[["VECTORIZED_ALIGNMENT"]],
                           opts[["HOMOPOLYMER_GAP_PENALTY"]],
@@ -355,7 +365,8 @@ dada <- function(derep,
                           opts[["SSE"]],
                           opts[["GAPLESS"]],
                           opts[["GREEDY"]],
-                          opts[["INDEL_RATE"]])
+                          opts[["INDEL_RATE"]],
+                          if(is.null(caches)) NULL else caches[[i]])
       
       # Augment the returns
       res$clustering$sequence <- as.character(res$clustering$sequence)
@@ -632,10 +643,15 @@ setDadaOpt <- function(...) {
     args <- args[[1]]
   }
   for(opnm in names(args)) {
-    if(opnm %in% names(opts)) { # class() OK here, since all dada-opts are simple objects with single classes
-      if( (class(getDadaOpt(opnm)) == class(args[[opnm]])) ||
-         (opnm == "HOMOPOLYMER_GAP_PENALTY" && # Allow numeric or NULL for HOMOPOLYMER_GAP_PENALTY
-          (is.numeric(args[["HOMOPOLYMER_GAP_PENALTY"]])) || is.null(args[["HOMOPOLYMER_GAP_PENALTY"]])) ) {
+    if(opnm %in% names(opts)) {
+      # DadaS: the previous test had a misplaced parenthesis (`A || (B && C) || is.null(HOMOPOLYMER_GAP_PENALTY)`),
+      # which was TRUE whenever HOMOPOLYMER_GAP_PENALTY was not being set, so any value of any class was accepted.
+      # Numeric options accept integer or double values, as before.
+      cur <- getDadaOpt(opnm); val <- args[[opnm]]
+      ok <- if(opnm == "HOMOPOLYMER_GAP_PENALTY") { is.null(val) || is.numeric(val) }
+            else if(is.numeric(cur)) { is.numeric(val) }
+            else { identical(class(cur), class(val)) }
+      if(ok) {
         assign(opnm, args[[opnm]], envir=dada_opts)
       } else {
         warning(paste0(opnm, " not set, value provided has different class (", class(args[[opnm]]), 

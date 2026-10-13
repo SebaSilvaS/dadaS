@@ -161,6 +161,28 @@ our data), and `learnErrors` hit the 10-round limit without converging. Learning
 per-read qualities would fix this, but it changes `derepFastq`/`dada` internals and is left for
 discussion.
 
+## Follow-up after the code review (branch `mejoras`)
+
+A line-by-line review found bugs and hotspots; everything that would change an existing output was
+deliberately left out (listed below). On the 7 sediment samples, all 8 stages are identical to the previous
+version and the run takes 2 h 36 min (was 3 h 55 min; DADA2 6 h 16 min). Tests: 55, all passing.
+
+- **Bugs fixed** (each with a regression test in `tests/testthat/test-fixes.R`): `USE_QUALS = FALSE`
+  failed; `assignTaxonomy` crashed on sequences shorter than 8 nt; `setDadaOpt` accepted values of any
+  class; `mergePairs` left the session with its alignment scores after an error; `dada()` leaked
+  ~185 MB per failed or interrupted call; `birth_from` was uninitialized for prior births.
+- **AlignCache** (`src/dada.h`, `src/cluster.cpp`): during `learnErrors` rounds, a comparison is skipped
+  when the cached k-mer screen or substitution count proves it would be discarded
+  (`emax^nsubs * reads < E_minmax`, where `emax` is the largest substitution rate at the unique's
+  qualities). Exact by construction; `learnErrors` 1.9x faster on the sediment data.
+- **Fused traceback** (`nwalign_vectorized2_sub`): builds the `Sub` directly; checked identical to
+  `al2subs(nwalign_vectorized2())` on 724,000 pairs (`C_check_fused_subs`). ~4% faster.
+- **`availableThreads()`**: honors `SLURM_CPUS_PER_TASK` and CPU affinity instead of `detectCores()`.
+- **Left out on purpose** (they change outputs): input-order dependence of `b_bud` (inputs from
+  `derepFastq` are always sorted), `collapseNoMismatch` ignoring `orderBy`, a phiX word-count off-by-one,
+  the -9999 band sentinel for reads over ~2,500 nt, `birth_qave = NaN`, and `KDIST_CUTOFF` (0.30 is 2.2x
+  faster in denoising with +4 of 1,179 ASVs on one sample).
+
 ## Where to look first
 
 1. `src/cluster.cpp`, `src/nwalign_endsfree.cpp`, `src/dada.h`: INDEL_RATE, the only algorithmic

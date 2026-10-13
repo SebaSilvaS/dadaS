@@ -118,7 +118,7 @@ struct AssignParallel : public RcppParallel::Worker
   const std::vector<std::string> &rcs;
   float *lgk_probability;
   int *C_genusmat;
-  double *C_unifs;
+  const double *C_unifs;
   int *C_rboot;
   int *C_rboot_tax;
   uint32_t *C_seeds; // DadaS: one seed per sequence (from R's RNG)
@@ -136,7 +136,7 @@ struct AssignParallel : public RcppParallel::Worker
   
   // initialize with source and destination
   AssignParallel(const std::vector<std::string> &seqs, const std::vector<std::string> &rcs, float *lgk_probability,
-                 int *C_genusmat, double *C_unifs, int *C_rboot, int *C_rboot_tax, uint32_t *C_seeds, int *C_err, int *C_rval, 
+                 int *C_genusmat, const double *C_unifs, int *C_rboot, int *C_rboot_tax, uint32_t *C_seeds, int *C_err, int *C_rval, 
                  unsigned int k, size_t n_kmers, size_t ngenus, size_t nlevel, unsigned int max_arraylen, bool try_rc)
     : seqs(seqs), rcs(rcs), lgk_probability(lgk_probability), 
       C_genusmat(C_genusmat), C_unifs(C_unifs), C_rboot(C_rboot), C_rboot_tax(C_rboot_tax), C_seeds(C_seeds), C_err(C_err), C_rval(C_rval), 
@@ -147,10 +147,13 @@ struct AssignParallel : public RcppParallel::Worker
     size_t i, seqlen;
     unsigned int boot, booti, arraylen, arraylen_rc;
     int max_g, max_g_rc, boot_g;
-    int karray[9999];
-    int karray_rc[9999];
-    int bootarray[9999/8];
-    double *unifs;
+    // DadaS: heap buffers sized to the longest sequence (were fixed 9999-element stack arrays, which
+    // overflowed for sequences longer than ~10,000 nt)
+    std::vector<int> karray_v(max_arraylen + 1), karray_rc_v(max_arraylen + 1), bootarray_v(max_arraylen/8 + 1);
+    int *karray = karray_v.data();
+    int *karray_rc = karray_rc_v.data();
+    int *bootarray = bootarray_v.data();
+    const double *unifs;
     float logp, logp_rc;
 
     for(std::size_t j=begin;j<end;j++) {
@@ -280,14 +283,17 @@ Rcpp::List C_assign_taxonomy2(std::vector<std::string> seqs, std::vector<std::st
   unsigned int seqlen;
   for(i=0;i<nseq;i++) {
     seqlen = seqs[i].size();
-    if((seqlen-k+1) > max_arraylen) { max_arraylen = seqlen-k+1; }
+    // DadaS: seqlen-k+1 is unsigned: a sequence shorter than k wrapped to ~4e9 and the allocation below failed
+    // ("negative length vectors"). Such sequences (and any < 50 nt) are not classified, so they are skipped here.
+    if(seqlen >= k && (seqlen-k+1) > max_arraylen) { max_arraylen = seqlen-k+1; }
   }
   
   // Rprintf("Generate random numbers for bootstrapping.");
   Rcpp::NumericVector unifs;
   unifs = Rcpp::runif(nseq*NBOOT*(max_arraylen/8));
-  double *C_unifs = (double *) malloc(unifs.size() * sizeof(double)); //E
-  for(i=0;i<unifs.size();i++) { C_unifs[i] = unifs(i); }
+  // DadaS: read the R vector directly instead of copying it (it can be hundreds of MB). Worker threads only
+  // read it, and it stays protected for the whole call.
+  const double *C_unifs = unifs.begin();
   
   // Allocate return values, plus thread-safe C versions of source data
   Rcpp::IntegerVector rval(nseq);
@@ -321,7 +327,7 @@ Rcpp::List C_assign_taxonomy2(std::vector<std::string> seqs, std::vector<std::st
   }
   
   if(C_err) {
-    free(C_rboot); free(C_rboot_tax); free(C_unifs); free(C_rval); free(C_genusmat);
+    free(C_rboot); free(C_rboot_tax); free(C_rval); free(C_genusmat);
     free(genus_num_plus1); free(kmer_prior); free(ref_kv); free(lgk_probability);
     Rcpp::stop("Discrepancy between forward and RC arraylen.");
   }
@@ -343,7 +349,6 @@ Rcpp::List C_assign_taxonomy2(std::vector<std::string> seqs, std::vector<std::st
   
   free(C_rboot);
   free(C_rboot_tax);
-  free(C_unifs);
   free(C_rval);
   free(C_genusmat);
   free(genus_num_plus1);

@@ -67,7 +67,7 @@ The number of nucleotides to remove from the end of each read. If both \code{tru
 \code{trimRight} are provided, truncation will be performed after \code{trimRight} is enforced.}
 
 \item{minQ}{(Optional). Default 0.
-After truncation, reads contain a quality score below minQ will be discarded.}
+After truncation, reads that contain a quality score less than or equal to minQ are discarded.}
 
 \item{maxEE}{(Optional). Default \code{Inf} (no EE filtering).
 After truncation, reads with higher than maxEE "expected errors" will be discarded.

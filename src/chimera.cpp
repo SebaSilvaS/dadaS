@@ -1,6 +1,7 @@
 #include "dada.h"
 #include <Rcpp.h>
 #include <RcppParallel.h>
+#include <algorithm>
 using namespace Rcpp;
 // [[Rcpp::depends(RcppParallel)]]
 
@@ -62,6 +63,7 @@ struct BimeraTableParallel : public RcppParallel::Worker
   // source data
   const RcppParallel::RMatrix<int> C_mat;
   const std::vector<std::string> seqs;
+  const std::vector< std::vector<int> > &by_abund; // DadaS: per sample, the nonzero columns by decreasing count
   
   // output
   RcppParallel::RVector<int> C_flags;
@@ -79,10 +81,11 @@ struct BimeraTableParallel : public RcppParallel::Worker
   
   // initialize with source and destination
   BimeraTableParallel(const Rcpp::IntegerMatrix mat, const std::vector<std::string> seqs,
+                  const std::vector< std::vector<int> > &by_abund,
                   Rcpp::IntegerVector flags, Rcpp::IntegerVector sams,
                   double min_fold, int min_abund, bool allow_one_off, int min_one_off_par_dist,
                   int match, int mismatch, int gap_p, int max_shift)
-    : C_mat(mat), seqs(seqs), C_flags(flags), C_sams(sams), min_fold(min_fold), min_abund(min_abund), 
+    : C_mat(mat), seqs(seqs), by_abund(by_abund), C_flags(flags), C_sams(sams), min_fold(min_fold), min_abund(min_abund), 
       allow_one_off(allow_one_off), min_one_off_par_dist(min_one_off_par_dist), match(match), mismatch(mismatch),
       gap_p(gap_p), max_shift(max_shift) {}
   
@@ -116,8 +119,15 @@ struct BimeraTableParallel : public RcppParallel::Worker
         nsam++;
         max_left=0; max_right=0;
         oo_max_left=0; oo_max_right=0; oo_max_left_oo=0; oo_max_right_oo=0;
-        for(k=0;k<ncol;k++) { // Compare with all possible parents
-          if(vals[i+k*nrow]>(min_fold*vals[i+j*nrow]) && vals[i+k*nrow]>=min_abund) {
+        // DadaS: only the columns of this sample with a count above min_fold * count(j) can be parents. Walking
+        // the sample's columns in decreasing count stops at the first one that is too small, instead of
+        // scanning all ncol columns (O(samples x ASVs^2) checks overall). The maxima below do not depend on
+        // the order in which parents are visited, so the result is identical.
+        const std::vector<int> &cand = by_abund[i];
+        for(size_t ci=0; ci<cand.size(); ci++) { // Compare with all possible parents
+          k = cand[ci];
+          if(!(vals[i+k*nrow]>(min_fold*vals[i+j*nrow]))) { break; }
+          if(vals[i+k*nrow]>=min_abund) {
             if(lefts[k]<0) { // Comparison not yet done to this potential parent
               al = nwalign_vectorized2(seqs[j].c_str(), seqs[j].length(), seqs[k].c_str(), seqs[k].length(), (int16_t) match, (int16_t) mismatch, (int16_t) gap_p, 0, max_shift);  // Remember, alignments must be freed!
               get_lr(al, left, right, left_oo, right_oo, allow_one_off, max_shift);
@@ -184,7 +194,14 @@ Rcpp::DataFrame C_table_bimera2(Rcpp::IntegerMatrix mat, std::vector<std::string
   Rcpp::IntegerVector flags(ncol, 0);
   Rcpp::IntegerVector sams(ncol, 0);
   
-  BimeraTableParallel bimParallel(mat, seqs, flags, sams, min_fold, min_abund, allow_one_off, min_one_off_par_dist,
+  // DadaS: per sample (row), its nonzero columns sorted by decreasing count (ties by column index)
+  int nrow = mat.nrow();
+  std::vector< std::vector<int> > by_abund(nrow);
+  for(int i=0;i<nrow;i++) {
+    for(int k=0;k<ncol;k++) { if(mat(i,k) > 0 || min_fold < 0) by_abund[i].push_back(k); } // min_fold < 0: zero counts can qualify
+    std::stable_sort(by_abund[i].begin(), by_abund[i].end(), [&](int a, int b) { return mat(i,a) > mat(i,b); });
+  }
+  BimeraTableParallel bimParallel(mat, seqs, by_abund, flags, sams, min_fold, min_abund, allow_one_off, min_one_off_par_dist,
                                   match, mismatch, gap_p, max_shift);
   RcppParallel::parallelFor(0, ncol, bimParallel);
   
@@ -248,7 +265,7 @@ void get_lr(char **al, int &left, int &right, int &left_oo, int &right_oo, bool 
   }
   
   pos=len-1; right=0;
-  while(al[0][pos] == '-' && pos >= 0) { 
+  while(pos >= 0 && al[0][pos] == '-') { // DadaS: bounds check first
     pos--;
   }
   while(al[1][pos] == '-' && pos>+(len-max_shift)) {

@@ -5,8 +5,16 @@
 #' @importFrom Rcpp evalCpp
 NULL
 
-dada_uniques <- function(seqs, abundances, priors, err, quals, match, mismatch, gap, use_kmers, kdist_cutoff, band_size, omegaA, omegaP, omegaC, detect_singletons, max_clust, min_fold, min_hamming, min_abund, use_quals, final_consensus, vectorized_alignment, homo_gap, multithread, verbose, SSE, gapless, greedy, indel_rate) {
-    .Call('_dadaS_dada_uniques', PACKAGE = 'dadaS', seqs, abundances, priors, err, quals, match, mismatch, gap, use_kmers, kdist_cutoff, band_size, omegaA, omegaP, omegaC, detect_singletons, max_clust, min_fold, min_hamming, min_abund, use_quals, final_consensus, vectorized_alignment, homo_gap, multithread, verbose, SSE, gapless, greedy, indel_rate)
+dada_uniques <- function(seqs, abundances, priors, err, quals, match, mismatch, gap, use_kmers, kdist_cutoff, band_size, omegaA, omegaP, omegaC, detect_singletons, max_clust, min_fold, min_hamming, min_abund, use_quals, final_consensus, vectorized_alignment, homo_gap, multithread, verbose, SSE, gapless, greedy, indel_rate, align_cache) {
+    .Call('_dadaS_dada_uniques', PACKAGE = 'dadaS', seqs, abundances, priors, err, quals, match, mismatch, gap, use_kmers, kdist_cutoff, band_size, omegaA, omegaP, omegaC, detect_singletons, max_clust, min_fold, min_hamming, min_abund, use_quals, final_consensus, vectorized_alignment, homo_gap, multithread, verbose, SSE, gapless, greedy, indel_rate, align_cache)
+}
+
+dada_align_cache_new <- function() {
+    .Call('_dadaS_dada_align_cache_new', PACKAGE = 'dadaS')
+}
+
+dada_align_cache_size <- function(align_cache) {
+    .Call('_dadaS_dada_align_cache_size', PACKAGE = 'dadaS', align_cache)
 }
 
 C_is_bimera <- function(sq, pars, allow_one_off, min_one_off_par_dist, match, mismatch, gap_p, max_shift) {
@@ -47,6 +55,10 @@ kmer_matches <- function(s1, s2, kmer_size) {
 
 kdist_matches <- function(s1, s2, kmer_size) {
     .Call('_dadaS_kdist_matches', PACKAGE = 'dadaS', s1, s2, kmer_size)
+}
+
+C_check_fused_subs <- function(centers, raws, match, mismatch, gap_p, band) {
+    .Call('_dadaS_C_check_fused_subs', PACKAGE = 'dadaS', centers, raws, match, mismatch, gap_p, band)
 }
 
 C_matchRef <- function(seqs, ref, word_size, non_overlapping) {

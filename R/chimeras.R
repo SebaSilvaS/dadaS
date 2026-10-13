@@ -64,7 +64,8 @@ isBimera <- function(sq, parents, allowOneOff=FALSE, minOneOffParentDistance=4, 
 #'   "parents".
 #'   
 #' @param minParentAbundance (Optional). A \code{numeric(1)}. Default is 8.
-#'   Only sequences at least this abundant can be "parents".
+#'   Only sequences more abundant than this can be "parents" (strictly greater; note that
+#'   \code{\link{isBimeraDenovoTable}} uses "at least this abundant").
 #' 
 #' @param allowOneOff (Optional). A \code{logical(1)}. Default is FALSE.
 #'   If FALSE, sequences that have one mismatch or indel to an exact bimera are also
@@ -112,7 +113,7 @@ isBimeraDenovo <- function(unqs, minFoldParentOverAbundance = 2, minParentAbunda
   
   # Parse multithreading argument
   if(is.logical(multithread)) {
-    if(multithread==TRUE) { mc.cores <- getOption("mc.cores", detectCores()) }
+    if(multithread==TRUE) { mc.cores <- getOption("mc.cores", availableThreads()) } # DadaS: was detectCores()
   } else if(is.numeric(multithread)) {
     mc.cores <- multithread
     multithread <- TRUE
@@ -225,7 +226,7 @@ isBimeraDenovoTable <- function(seqtab, minSampleFraction=0.9, ignoreNNegatives=
   if(any(duplicated(sqs))) stop("Duplicate sequences detected in input.")
   # Parse multithreading argument
   if(is.logical(multithread)) {
-    if(multithread==TRUE) { RcppParallel::setThreadOptions(numThreads = "auto") }
+    if(multithread==TRUE) { RcppParallel::setThreadOptions(numThreads = availableThreads()) } # DadaS: was "auto"
     else { RcppParallel::setThreadOptions(numThreads = 1) }
   } else if(is.numeric(multithread)) {
     RcppParallel::setThreadOptions(numThreads = multithread)

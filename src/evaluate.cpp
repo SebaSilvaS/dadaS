@@ -92,6 +92,7 @@ Rcpp::IntegerVector C_eval_pair(std::string s1, std::string s2) {
   end = s1.size();
   do {
     end--;
+    if(end < 0) { break; } // DadaS: all-gap input previously read s1[-1]
     s1gap = s1gap && (s1[end] == '-');
     s2gap = s2gap && (s2[end] == '-');
   } while((s1gap || s2gap) && end>=start);
@@ -353,4 +354,30 @@ Rcpp::IntegerVector kdist_matches(std::vector< std::string > s1, std::vector< st
   free(kv1);
   free(kv2);
   return(kdist_match);
+}
+
+// DadaS (internal check): compares the fused traceback (nwalign_vectorized2_sub) with the original route
+// al2subs(nwalign_vectorized2(...)) for each pair. Returns the number of pairs whose Sub differs.
+// [[Rcpp::export]]
+int C_check_fused_subs(std::vector<std::string> centers, std::vector<std::string> raws, int match, int mismatch, int gap_p, int band) {
+  int ndiff = 0;
+  if(centers.size() != raws.size()) Rcpp::stop("Length mismatch.");
+  for(size_t k=0; k<centers.size(); k++) {
+    char *c = intstr(centers[k].c_str());
+    char *r = intstr(raws[k].c_str());
+    size_t lc = centers[k].size(), lr = raws[k].size();
+    char **al = nwalign_vectorized2(c, lc, r, lr, (int16_t) match, (int16_t) mismatch, (int16_t) gap_p, 0, band);
+    Sub *a = al2subs(al);
+    Sub *b = nwalign_vectorized2_sub(c, lc, r, lr, (int16_t) match, (int16_t) mismatch, (int16_t) gap_p, 0, band);
+    bool same = a->nsubs == b->nsubs && a->nindel == b->nindel && a->len0 == b->len0 &&
+      memcmp(a->map, b->map, a->len0 * sizeof(uint16_t)) == 0 &&
+      memcmp(a->pos, b->pos, a->nsubs * sizeof(uint16_t)) == 0 &&
+      memcmp(a->nt0, b->nt0, a->nsubs) == 0 && memcmp(a->nt1, b->nt1, a->nsubs) == 0;
+    if(!same) ndiff++;
+    a->q0 = a->q1 = NULL; b->q0 = b->q1 = NULL;
+    sub_free(a); sub_free(b);
+    free(al[0]); free(al[1]); free(al);
+    free(c); free(r);
+  }
+  return ndiff;
 }

@@ -5,6 +5,32 @@
 
 /********* ALGORITHM LOGIC *********/
 
+/* DadaS: alignment cache helpers (see AlignCache in dada.h).
+   cache_vec() returns the cache row of the center of cluster i (NULL if caching is off or i == 0: the initial
+   cluster is compared with the k-mer screen disabled and before E_minmax is set).
+   cache_skip() is true when the cached result proves the comparison would be discarded. */
+static std::vector<uint8_t> *cache_vec(AlignCache *cache, B *b, unsigned int i) {
+  if(!cache || i == 0) return NULL;
+  std::vector<uint8_t> &v = cache->by_center[b->bi[i]->center->index];
+  if(v.size() != b->nraw) v.assign(b->nraw, CACHE_UNKNOWN);
+  return &v;
+}
+static inline bool cache_nullsub(const std::vector<uint8_t> *cv, unsigned int index) {
+  return cv && (*cv)[index] == CACHE_NULLSUB;
+}
+static inline bool cache_skip(const std::vector<uint8_t> *cv, unsigned int index, const Raw *raw, const double *emax, unsigned int breads) {
+  if(!cv || !emax) return false;
+  uint8_t c = (*cv)[index];
+  if(c > CACHE_MAXSUBS) return false;          // unknown (or NULL sub, handled separately)
+  if(!(raw->E_minmax > 0)) return false;      // nothing to compare against
+  double bound = pow(emax[index], (double) c); // lambda <= emax^nsubs
+  return bound * (double) breads * (1.0 + 1e-9) < raw->E_minmax;
+}
+static inline void cache_store(std::vector<uint8_t> *cv, unsigned int index, const Sub *sub) {
+  if(!cv) return;
+  (*cv)[index] = sub ? (uint8_t) (sub->nsubs > CACHE_MAXSUBS ? CACHE_MAXSUBS : sub->nsubs) : CACHE_NULLSUB;
+}
+
 /*
  compare:
 Performs alignments and computes lambda for all raws to the specified Bi
@@ -13,7 +39,7 @@ Stores only those that can possibly be recruited to this Bi
 void b_compare(B *b, unsigned int i, Rcpp::NumericMatrix errMat, 
                int match, int mismatch, int gap_pen, int homo_gap_pen, 
                bool use_kmers, double kdist_cutoff, int band_size, bool vectorized_alignment, 
-               int SSE, bool gapless, bool greedy, bool verbose) {
+               int SSE, bool gapless, bool greedy, bool verbose, AlignCache *cache, const double *emax) {
   unsigned int index, cind, center_reads;
   double lambda;
   Raw *raw;
@@ -47,6 +73,8 @@ void b_compare(B *b, unsigned int i, Rcpp::NumericMatrix errMat,
 
   // align all raws to this sequence and compute corresponding lambda
   center_reads = b->bi[i]->center->reads;
+  std::vector<uint8_t> *cv = cache_vec(cache, b, i);
+  NWWork nww; // DadaS: aligner buffers reused for every comparison of this call
   if(verbose) { Rprintf("C%iLU:", i); }
   for(index=0, cind=0; index<b->nraw; index++) {
     raw = b->raw[index];
@@ -67,10 +95,13 @@ void b_compare(B *b, unsigned int i, Rcpp::NumericMatrix errMat,
       sub = NULL;
     } else if(greedy && raw->lock) { // was (raw->p > 0.5)
       sub = NULL;
+    } else if(cache_nullsub(cv, index) || cache_skip(cv, index, raw, emax, b->reads)) {
+      sub = NULL; // DadaS: cached result shows this comparison is discarded (lambda = 0 is never stored)
     } else {
-      sub = sub_new(b->bi[i]->center, raw, match, mismatch, gap_pen, homo_gap_pen, use_kmers, kdist_cutoff, band_size, vectorized_alignment, SSE, gapless);
+      sub = sub_new(b->bi[i]->center, raw, match, mismatch, gap_pen, homo_gap_pen, use_kmers, kdist_cutoff, band_size, vectorized_alignment, SSE, gapless, &nww);
       b->nalign++;
       if(!sub) { b->nshroud++; }
+      cache_store(cv, index, sub);
     }
     
     // Calculate lambda for that sub
@@ -118,21 +149,24 @@ struct CompareParallel : public RcppParallel::Worker
   bool vectorized_alignment;
   int SSE;
   bool gapless, greedy;
+  std::vector<uint8_t> *cv; // DadaS: alignment cache row of this center (NULL = no cache)
+  const double *emax;
   
   // initialize with source and destination
   CompareParallel(B *b, unsigned int i, double *err_mat, unsigned int ncol, Comparison *output,
                   int match, int mismatch, int gap_pen, int homo_gap_pen,
                   bool use_kmers, double kdist_cutoff, int band_size, bool vectorized_alignment, 
-                  int SSE, bool gapless, bool greedy) 
+                  int SSE, bool gapless, bool greedy, std::vector<uint8_t> *cv, const double *emax) 
     : b(b), i(i), err_mat(err_mat), ncol(ncol), output(output), 
       match(match), mismatch(mismatch), gap_pen(gap_pen), homo_gap_pen(homo_gap_pen), 
       use_kmers(use_kmers), kdist_cutoff(kdist_cutoff), band_size(band_size), vectorized_alignment(vectorized_alignment), 
-      SSE(SSE), gapless(gapless), greedy(greedy) {}
+      SSE(SSE), gapless(gapless), greedy(greedy), cv(cv), emax(emax) {}
   
   // Perform sequence comparison
   void operator()(std::size_t begin, std::size_t end) {
     Raw *raw;
     Sub *sub;
+    NWWork nww; // DadaS: aligner buffers reused for every comparison of this chunk
     
     for(std::size_t index=begin;index<end;index++) {
       raw = b->raw[index];
@@ -140,8 +174,11 @@ struct CompareParallel : public RcppParallel::Worker
         sub = NULL;
       } else if(greedy && raw->lock) { // was (raw->p > 0.5)
         sub = NULL;
+      } else if(cache_nullsub(cv, index) || cache_skip(cv, index, raw, emax, b->reads)) {
+        sub = NULL; // DadaS: cached result shows this comparison is discarded (each thread writes its own index)
       } else {
-        sub = sub_new(b->bi[i]->center, raw, match, mismatch, gap_pen, homo_gap_pen, use_kmers, kdist_cutoff, band_size, vectorized_alignment, SSE, gapless);
+        sub = sub_new(b->bi[i]->center, raw, match, mismatch, gap_pen, homo_gap_pen, use_kmers, kdist_cutoff, band_size, vectorized_alignment, SSE, gapless, &nww);
+        cache_store(cv, index, sub);
       }  
 
       // Make comparison object
@@ -166,7 +203,7 @@ struct CompareParallel : public RcppParallel::Worker
 void b_compare_parallel(B *b, unsigned int i, Rcpp::NumericMatrix errMat, 
                         int match, int mismatch, int gap_pen, int homo_gap_pen, 
                         bool use_kmers, double kdist_cutoff, int band_size, bool vectorized_alignment, 
-                        int SSE, bool gapless, bool greedy, bool verbose) {
+                        int SSE, bool gapless, bool greedy, bool verbose, AlignCache *cache, const double *emax) {
   unsigned int index, cind, row, col, ncol;
   double lambda;
   Raw *raw;
@@ -186,7 +223,8 @@ void b_compare_parallel(B *b, unsigned int i, Rcpp::NumericMatrix errMat,
   // Parallelize for loop to perform all comparisons
   Comparison *comps = (Comparison *) malloc(sizeof(Comparison) * b->nraw);
   if(comps==NULL) Rcpp::stop("Memory allocation failed.");
-  CompareParallel compareParallel(b, i, err_mat, ncol, comps, match, mismatch, gap_pen, homo_gap_pen, use_kmers, kdist_cutoff, band_size, vectorized_alignment, SSE, gapless, greedy);
+  std::vector<uint8_t> *cv = cache_vec(cache, b, i); // allocated here, before the threads start
+  CompareParallel compareParallel(b, i, err_mat, ncol, comps, match, mismatch, gap_pen, homo_gap_pen, use_kmers, kdist_cutoff, band_size, vectorized_alignment, SSE, gapless, greedy, cv, emax);
   RcppParallel::parallelFor(0, b->nraw, compareParallel, GRAIN_SIZE);
   
   // Selectively store
@@ -347,6 +385,7 @@ int b_bud(B *b, double min_fold, int min_hamming, int min_abund, bool verbose) {
     raw = bi_pop_raw(b->bi[mini_prior], minr_prior);
     i = b_add_bi(b, bi_new(b->nraw));
     strcpy(b->bi[i]->birth_type, "P");
+    b->bi[i]->birth_from = mini_prior; // DadaS: was left uninitialized for prior-driven births
     b->bi[i]->birth_pval = pP;
     b->bi[i]->birth_fold = raw->reads/expected;
     b->bi[i]->birth_e = expected;

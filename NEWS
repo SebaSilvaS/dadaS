@@ -1,3 +1,22 @@
+CHANGES IN DadaS 1.36.0.9001 (review follow-up; all outputs identical)
+-----------------------
+
+BUG FIXES
+
+    o USE_QUALS=FALSE works (dada() always passed use_quals=TRUE; noqualErrfun failed on one column).
+    o assignTaxonomy no longer fails when a sequence is shorter than the k-mer size.
+    o setDadaOpt validates option classes (a misplaced parenthesis accepted anything).
+    o mergePairs no longer changes the session's alignment scores (an error left MATCH=1, MISMATCH=-64).
+    o dada() frees all memory when it fails or is interrupted (~185 MB leaked per call before).
+    o birth_from is set for prior-driven births; two out-of-bounds reads guarded.
+
+PERFORMANCE
+
+    o Alignment cache across selfConsist rounds: learnErrors ~2x faster, identical output.
+    o Substitutions built directly in the traceback, with reusable aligner buffers (~4%).
+    o availableThreads(): multithread=TRUE honors Slurm allocations and CPU affinity.
+    o Lower memory in assignTaxonomy and mergePairs; faster parent search in isBimeraDenovoTable.
+
 CHANGES IN DadaS 1.36.0.9000 (fork of dada2 1.36.0)
 -----------------------
 
