@@ -11,7 +11,7 @@ Description: DadaS is a fork of DADA2 1.36.0 that gives identical results with d
     removing substitution and chimera errors. Taxonomic classification is available
     via a native implementation of the RDP naive Bayesian classifier, and species-level
     assignment to 16S rRNA gene fragments by exact matching.
-Version: 1.36.0.9000
+Version: 1.36.0.9001
 Date: 2026-10-12
 Maintainer: Seba Silva <sgsilvas96@gmail.com>
 Author: Benjamin Callahan [aut] (original DADA2 author), Paul McMurdie [aut] (DADA2),
