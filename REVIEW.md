@@ -203,8 +203,31 @@ below when available.
 | phiX filter skips one extra position when counting non-overlapping words | Which reads are removed |
 | −9,999 band sentinel in the scalar aligners | Alignments of reads over ~2,500 nt |
 | `birth_qave` is `NaN` for a partition born with 0 substitutions | One diagnostic value |
-| `KDIST_CUTOFF` 0.30 instead of 0.42 | On one sample, denoising 82 s → 37 s (2.2×), 1,179 → 1,183 ASVs; all samples under evaluation |
+| `KDIST_CUTOFF` 0.30 instead of 0.42 | Faster but different ASVs; see the evaluation below |
 | `learnErrors` convergence with a tolerance (binned data never converge exactly) | The error model |
+
+### `KDIST_CUTOFF` 0.30 vs 0.42 on the sediment samples
+
+The k-mer screen (`KDIST_CUTOFF`, default 0.42) lets almost every pair of sequences from the same
+amplicon through to a full alignment. With 0.30, the error model was learned again and every
+sample denoised with it (2 cores; per-sample times measured one sample at a time):
+
+| Sample | F time 0.42 → 0.30 (s) | F ASVs 0.42 → 0.30 | R time 0.42 → 0.30 (s) | R ASVs 0.42 → 0.30 | Final ASVs 0.42 → 0.30 |
+|---|---|---|---|---|---|
+| t1 | 383 → 208 (1.84×) | 4,462 → 4,516 | 114 → 86 (1.33×) | 3,764 → 3,905 | 3,322 → 3,424 |
+| t2 | 324 → 163 (1.99×) | 2,751 → 2,778 | 67 → 47 (1.42×) | 2,449 → 2,517 | 1,897 → 1,932 |
+| t3 | 311 → 151 (2.06×) | 2,462 → 2,488 | 61 → 45 (1.36×) | 2,099 → 2,152 | 1,653 → 1,688 |
+| t4 | 281 → 134 (2.10×) | 2,217 → 2,241 | 51 → 37 (1.38×) | 1,875 → 1,927 | 1,499 → 1,525 |
+| t5 | 381 → 202 (1.89×) | 2,310 → 2,327 | 81 → 54 (1.48×) | 1,940 → 1,992 | 1,470 → 1,484 |
+| t6 | 89 → 44 (2.01×) | 1,179 → 1,173 | 20 → 13 (1.52×) | 1,047 → 1,083 | 814 → 820 |
+| t7 | 446 → 217 (2.06×) | 2,431 → 2,453 | 77 → 54 (1.42×) | 1,872 → 1,911 | 1,498 → 1,522 |
+| **All** | **2,684 → 1,455 s for F+R (1.85×)** | | | | **8,781 → 8,996 (+2.4 %)** |
+
+Pipeline stages with 0.30: `learnErrors` 5,031 → 3,889 s (1.29×; the 0.30 run shared the machine with
+other work for part of the time), `dada` 2,191 → 1,431 s (1.53×), chimeras 1,066 → 1,234 s (more ASVs
+to check). Final table: 8,497 ASVs shared, 284 only with 0.42, 499 only with 0.30; the ASVs found
+only with 0.30 hold 2,167 of 629,551 reads (0.34 %). Every sample gains ASVs (+6 to +102 in the final
+table), mostly rare ones. Whether they are true variants needs a mock community; the default stays 0.42.
 
 ## Where to look first
 
