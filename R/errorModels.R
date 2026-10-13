@@ -346,7 +346,9 @@ learnErrors <- function(fls, nbases=1e8, nreads=NULL, errorEstimationFunction = 
     if (is.list.of(fls, "derep")){
         drps[[i]] <- fls[[i]]
     } else {
-        drps[[i]] <- derepFastq(fls[[i]], qualityType = qualityType)
+        # DadaS: the per-read quality model needs the quality histogram
+        prq <- isTRUE(list(...)$PER_READ_QUALS) || (is.null(list(...)$PER_READ_QUALS) && isTRUE(getDadaOpt("PER_READ_QUALS")))
+        drps[[i]] <- derepFastq(fls[[i]], qualityType = qualityType, qualityHistogram = prq)
     }
     NREADS <- NREADS + sum(as.numeric(drps[[i]]$uniques))
     NBASES <- NBASES + sum(as.numeric(drps[[i]]$uniques) * as.numeric(nchar(names(drps[[i]]$uniques))))

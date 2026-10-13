@@ -46,7 +46,10 @@ Rcpp::List dada_uniques(std::vector< std::string > seqs, std::vector<int> abunda
                         bool gapless,
                         bool greedy,
                         double indel_rate,
-                        SEXP align_cache) {
+                        SEXP align_cache,
+                        std::vector<int> qh_values,
+                        std::vector<int> qh_index,
+                        std::vector<int> qh_counts) {
 
   unsigned int i, r, index, pos, nraw, maxlen, minlen;
   Raw *raw;
@@ -153,6 +156,33 @@ Rcpp::List dada_uniques(std::vector< std::string > seqs, std::vector<int> abunda
       raws[index]->index = index;
     }
     
+    // DadaS (PER_READ_QUALS): attach the per-read quality histogram to the uniques that have one
+    if(qh_values.size() > 0) {
+      if(!use_quals || !has_quals) dada_stop("PER_READ_QUALS requires quality scores.");
+      unsigned int V = qh_values.size(), nh = qh_index.size();
+      if(qh_counts.size() != (size_t) nh * maxlen * V) dada_stop("Quality histogram has the wrong size.");
+      for(unsigned int v=0; v<V; v++) { if(qh_values[v] < 0 || qh_values[v] >= err.ncol()) dada_stop("Quality score %i outside the error matrix.", qh_values[v]); }
+      for(unsigned int k=0; k<nh; k++) {
+        if(qh_index[k] < 0 || (unsigned int) qh_index[k] >= nraw) dada_stop("Quality histogram index out of range.");
+        raw = raws[qh_index[k]];
+        raw->nqv = V;
+        raw->qvals = qh_values.data();
+        raw->qcount = (uint32_t *) malloc(raw->length * V * sizeof(uint32_t));
+        raw->qfrac = (double *) malloc(raw->length * V * sizeof(double));
+        if(!raw->qcount || !raw->qfrac) dada_stop("Memory allocation failed.");
+        for(pos=0; pos<raw->length; pos++) {
+          unsigned int tot = 0;
+          for(unsigned int v=0; v<V; v++) {
+            int c = qh_counts[k + (size_t) nh * (pos + (size_t) maxlen * v)];
+            raw->qcount[pos*V + v] = (uint32_t) c;
+            raw->qfrac[pos*V + v] = ((double) c) / raw->reads;
+            tot += c;
+          }
+          if(tot != raw->reads) dada_stop("Quality histogram does not match the abundance of unique %u.", qh_index[k] + 1);
+        }
+      }
+    }
+
     if(use_kmers) {
       /// Add uint8_t kmer index in contiguous memory block
       size_t n_kmer = 1 << (2*KMER_SIZE);
@@ -204,7 +234,16 @@ Rcpp::List dada_uniques(std::vector< std::string > seqs, std::vector<int> abunda
       for(index=0;index<nraw;index++) {
         raw = raws[index];
         double m = 0.0;
-        if(use_quals && raw->qual) {
+        if(use_quals && raw->qcount) { // DadaS: any quality score present at a position can carry a substitution
+          for(pos=0;pos<raw->length && m < 1.0;pos++) {
+            for(unsigned int v=0; v<raw->nqv; v++) {
+              if(raw->qcount[pos*raw->nqv + v] == 0) continue;
+              unsigned int q = raw->qvals[v];
+              if(q >= ncol) { m = 1.0; break; }
+              if(colmax[q] > m) m = colmax[q];
+            }
+          }
+        } else if(use_quals && raw->qual) {
           for(pos=0;pos<raw->length;pos++) {
             unsigned int q = raw->qual[pos];
             if(q >= ncol) { m = 1.0; break; } // out of range: compute_lambda will stop; no pruning

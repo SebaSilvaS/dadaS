@@ -10,6 +10,12 @@ BUG FIXES
     o dada() frees all memory when it fails or is interrupted (~185 MB leaked per call before).
     o birth_from is set for prior-driven births; two out-of-bounds reads guarded.
 
+NEW (OPTIONAL)
+
+    o Per-read quality error model: derepFastq(qualityHistogram = TRUE) and
+      setDadaOpt(PER_READ_QUALS = TRUE). Lambda and the transition counts use each read's
+      quality instead of the unique's rounded average (off by default; changes results when on).
+
 PERFORMANCE
 
     o Alignment cache across selfConsist rounds: learnErrors ~2x faster, identical output.

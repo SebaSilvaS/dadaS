@@ -28,6 +28,13 @@
 #'  If TRUE, throw standard R \code{\link{message}}s 
 #'  on the intermittent and final status of the dereplication.
 #'
+#' @param qualityHistogram (Optional). Default FALSE. DadaS.
+#'  If TRUE, the file is read a second time to record, for every unique sequence with more than one
+#'  read, how many of its reads have each quality score at each position (\code{$qhist}). This is
+#'  required by the per-read quality error model (\code{setDadaOpt(PER_READ_QUALS = TRUE)}), which
+#'  avoids averaging quality scores across the reads of a unique. Intended for binned quality scores
+#'  (NovaSeq/NextSeq, a handful of distinct values); with many distinct values the histogram is large.
+#'
 #' @return A \code{\link{derep-class}} object or list of such objects. 
 #'
 #' @export
@@ -42,7 +49,7 @@
 #' derep1.35 = derepFastq(testFastq, n = 35, verbose = TRUE)
 #' all.equal(getUniques(derep1), getUniques(derep1.35)[names(getUniques(derep1))])
 #' 
-derepFastq <- function(fls, n = 1e6, verbose = FALSE, qualityType = "Auto") {
+derepFastq <- function(fls, n = 1e6, verbose = FALSE, qualityType = "Auto", qualityHistogram = FALSE) {
   if(!is.character(fls)) { stop("File paths must be provided in character format.") }
   if(length(fls)==1 && dir.exists(fls)) { fls <- parseFastqDirectory(fls) }
   if(!all(file.exists(fls))) { stop("Not all provided files exist.") }
@@ -108,6 +115,7 @@ derepFastq <- function(fls, n = 1e6, verbose = FALSE, qualityType = "Auto") {
     }
     close(f)
     derepO <- list(uniques=derepCounts, quals=derepQuals, map=derepMap)
+    if(qualityHistogram) derepO$qhist <- qualHistogram(fl, derepO, n = n, qualityType = qualityType) # DadaS
     derepO <- as(derepO, "derep")
     rval[[i]] <- derepO
   }
@@ -122,6 +130,60 @@ derepFastq <- function(fls, n = 1e6, verbose = FALSE, qualityType = "Auto") {
   }
   return(rval)
 }
+################################################################################
+## DadaS: per-read quality histogram of the unique sequences with more than one read.
+##
+## Second pass over the fastq file (same read order as the dereplication, so derep$map applies).
+## Returns list(values = the distinct quality scores (sorted), index = indices of the uniques in
+## derep$uniques that have >= 2 reads, counts = integer array [unique, position, value] with the number
+## of reads of that unique carrying that quality score at that position). Single-read uniques need no
+## histogram: their average quality is their read's quality.
+qualHistogram <- function(fl, derep, n = 1e6, qualityType = "Auto") {
+  uq <- derep$uniques
+  idx <- which(uq >= 2)
+  L <- ncol(derep$quals)
+  slot <- integer(length(uq)); slot[idx] <- seq_along(idx)
+  maxMB <- getOption("dadaS.maxQualHistMB", 4000)
+  counts <- list() # one [unique, position] integer matrix per quality value, created when first seen
+  f <- FastqStreamer(fl, n = n)
+  on.exit(close(f))
+  off <- 0L
+  while(length(suppressWarnings(fq <- yield(f, qualityType = qualityType)))) {
+    nr <- length(fq)
+    ui <- derep$map[off + seq_len(nr)]
+    off <- off + nr
+    keep <- !is.na(ui) & slot[ifelse(is.na(ui), 1L, ui)] > 0L & !is.na(ui)
+    if(!any(keep)) next
+    q <- as(quality(fq[keep]), "matrix")
+    g <- slot[ui[keep]]
+    q[is.na(q)] <- -1L
+    for(v in setdiff(sort(unique(as.vector(q))), -1L)) {
+      key <- as.character(v)
+      if(is.null(counts[[key]])) {
+        if((length(counts) + 1) * length(idx) * L * 4 / 2^20 > maxMB) {
+          stop("The per-read quality histogram would exceed ", maxMB, " MB (", length(counts) + 1,
+               " distinct quality scores). It is intended for binned quality scores; ",
+               "raise options(dadaS.maxQualHistMB) to override.")
+        }
+        counts[[key]] <- matrix(0L, nrow = length(idx), ncol = L)
+      }
+      m <- rowsum((q == v) + 0L, g, reorder = FALSE)
+      rows <- as.integer(rownames(m))
+      counts[[key]][rows, seq_len(ncol(m))] <- counts[[key]][rows, seq_len(ncol(m))] + m
+    }
+  }
+  if(off != length(derep$map)) stop("Quality histogram: the second pass read ", off, " reads, expected ", length(derep$map), ".")
+  vals <- sort(as.integer(names(counts)))
+  arr <- array(0L, dim = c(length(idx), L, length(vals)))
+  for(k in seq_along(vals)) arr[, , k] <- counts[[as.character(vals[k])]]
+  # every read of a unique covers all positions of its sequence
+  tot <- apply(arr, c(1, 2), sum)
+  lens <- nchar(names(uq)[idx])
+  expect <- outer(unname(uq[idx]), seq_len(L), function(a, p) a) * outer(lens, seq_len(L), ">=")
+  if(!identical(as.numeric(tot), as.numeric(expect))) stop("Quality histogram does not match the dereplicated read counts.")
+  list(values = vals, index = idx, counts = arr)
+}
+
 ###
 #' Internal tables function
 #' 

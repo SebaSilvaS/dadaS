@@ -94,6 +94,12 @@ typedef struct {
   Comparison comp;  // the comparison between this Raw and...
   bool lock;   // "Locks" the raw to its current Bi in greedy-mode
   bool correct; // this Raw will be corrected to the center of its partition
+  // DadaS: per-read quality model (PER_READ_QUALS). NULL for uniques with one read (their quality is exact)
+  // or when the model is off. qcount[pos*nqv + v] = reads with quality qvals[v] at pos; qfrac = qcount/reads.
+  uint32_t *qcount;
+  double *qfrac;
+  const int *qvals;
+  unsigned int nqv;
 } Raw;
 
 // Bi: This is one cluster or partition. Contains raws grouped in fams.

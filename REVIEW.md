@@ -152,8 +152,47 @@ The community variant of `loessErrfun` for binned qualities
 
 **Root cause.** `derepFastq` averages qualities per unique sequence. With three quality values that
 average is coupled with abundance (rare uniques sit at Q40), so the fitted Q40 error rate is inflated
-(1.57 % at Q40 vs 0.012 % at Q39 in our data) and `learnErrors` never converges. A per-read quality
-error model is being added as an option (see `NEWS`).
+(1.57 % at Q40 vs 0.012 % at Q39 in our data) and `learnErrors` never converges. The per-read
+quality model below removes the averaging.
+
+### Per-read quality error model (`setDadaOpt(PER_READ_QUALS = TRUE)`)
+
+DADA2 gives each unique sequence the rounded average of its reads' quality scores. With binned
+qualities (NovaSeq/NextSeq: e.g. Q12/Q24/Q40) the average lands between bins and depends on abundance:
+single-read uniques keep their exact bins, abundant ones drift to Q38–39. The error model is then
+fitted on qualities that no read has.
+
+- `derepFastq(..., qualityHistogram = TRUE)` reads the file a second time and stores, for every unique
+  with more than one read, how many reads carry each quality score at each position (`$qhist`:
+  values, unique indices, counts array). Single-read uniques need none. Memory on one sediment sample:
+  15,757 of 102,207 uniques × 260 positions × 3 values.
+- With `PER_READ_QUALS = TRUE`, each position contributes to λ the average over the unique's reads of
+  the error rate at each read's quality, and `trans` counts each read at its own quality
+  (`src/pval.cpp`, `src/error.cpp`; the histogram is attached to each `Raw` in `src/Rmain.cpp`). The
+  alignment-cache bound uses the largest rate among the qualities present at each position.
+- `learnErrors` and `dada` dereplicate with the histogram automatically when given file paths.
+- Off by default: outputs identical to DADA2. When all reads of a unique share their qualities, the
+  per-read model gives exactly the averaged model's results (tested).
+
+Binned-quality simulation (V4, 285 base taxa + 21 substitution variants, true error rates
+Q12 6 %, Q24 0.6 %, Q40 0.05 % per base, plus 0.05 % PCR substitutions at any quality). Learned rate per
+transition, forward reads:
+
+| | Q12 | Q24 | Q40 | Variants recovered | Base taxa | False ASVs |
+|---|---|---|---|---|---|---|
+| Truth (sequencer + PCR) | 2.0e-2 | 2.2e-3 | 3.3e-4 | 21 | 285 | 0 |
+| Average quality, `loessErrfun` (DADA2) | 5.6e-2 | 1.05e-2 | 3.7e-4 ¹ | 15 | 285 | 0 |
+| Average quality, `makeBinnedQualErrfun` | 5.5e-2 | 8.6e-3 | 2.1e-3 | 10 | 283 | 0 |
+| Per-read quality, `loessErrfun` | 2.1e-2 | 3.0e-3 | 1.1e-3 | 9 | 283 | 0 |
+| Per-read quality, `makeBinnedQualErrfun` | 2.1e-2 | 3.0e-3 | 1.1e-3 | 9 | 283 | 0 |
+
+¹ Observed 2.0e-3 at Q40; the loess fit pulls it down.
+
+The per-read model recovers the true Q12 rate and brings Q24 within 1.4× (averaging overestimates them
+2.8× and 4.8×). Q40 remains 3× too high, most likely because true variants that are not yet resolved
+are counted as errors. With averaging plus loess, the smoothing happens to lower Q40, which makes that
+configuration more sensitive in this simulation. Results on the sediment data: see the evaluation
+below when available.
 
 ## 6. Left out on purpose (they would change existing outputs)
 

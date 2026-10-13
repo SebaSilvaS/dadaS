@@ -158,7 +158,15 @@ Rcpp::IntegerMatrix b_make_transition_by_quality_matrix(B *b, Sub **subs, bool h
         nti1 = (int) (raw->seq[pos1] - 1);
         // And record these counts
         t_ij = (4*nti0)+nti1;
-        if(has_quals) {
+        if(has_quals && raw->qcount) { // DadaS (PER_READ_QUALS): count each read at its own quality score
+          for(unsigned int v=0; v<raw->nqv; v++) {
+            unsigned int c = raw->qcount[pos1*raw->nqv + v];
+            if(c == 0) continue;
+            qual = (unsigned int) raw->qvals[v];
+            if(qual >= (unsigned int) ncol) { dada_stop("Quality score %u outside the error matrix (%i columns).", qual, ncol); }
+            transMat(t_ij, qual) += c;
+          }
+        } else if(has_quals) {
           qual = raw->qual[pos1]; // qual=unsigned int
           if(qual >= (unsigned int) ncol) { dada_stop("Quality score %u outside the error matrix (%i columns).", qual, ncol); } // DadaS: was an unchecked write
           transMat(t_ij, qual) += raw->reads;

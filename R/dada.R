@@ -22,6 +22,7 @@ assign("HOMOPOLYMER_GAP_PENALTY", NULL, envir = dada_opts)
 assign("SSE", 2, envir = dada_opts)
 assign("GAPLESS", TRUE, envir=dada_opts)
 assign("GREEDY", TRUE, envir=dada_opts)
+assign("PER_READ_QUALS", FALSE, envir=dada_opts) # DadaS: per-read quality error model (see setDadaOpt)
 assign("INDEL_RATE", 0, envir=dada_opts) # DadaS: per-event indel error rate; 0 = ignore indels (DADA2 behavior)
 assign("PSEUDO_PREVALENCE", 2, envir=dada_opts)
 assign("PSEUDO_ABUNDANCE", Inf, envir=dada_opts)
@@ -210,6 +211,10 @@ dada <- function(derep,
   if(is.null(opts$INDEL_RATE)) opts$INDEL_RATE <- 0 # DadaS
   if(!is.numeric(opts$INDEL_RATE) || opts$INDEL_RATE < 0 || opts$INDEL_RATE >= 1) stop("INDEL_RATE must be in [0, 1).")
   if(opts$OMEGA_P < 0 || opts$OMEGA_P >= 1) stop("OMEGA_P must be between zero and one.")
+  if(is.null(opts$PER_READ_QUALS)) opts$PER_READ_QUALS <- FALSE # DadaS
+  if(!(is.logical(opts$PER_READ_QUALS) && length(opts$PER_READ_QUALS) == 1 && !is.na(opts$PER_READ_QUALS))) stop("PER_READ_QUALS must be TRUE or FALSE.")
+  if(opts$PER_READ_QUALS && !opts$USE_QUALS) stop("PER_READ_QUALS requires USE_QUALS = TRUE.")
+  if(opts$PER_READ_QUALS && isTRUE(pool)) stop("PER_READ_QUALS is not available with pool = TRUE.")
   if(opts$OMEGA_P < opts$OMEGA_A && length(priors) > 0) warning("OMEGA_P should generally be larger than OMEGA_A.")
   if(opts$OMEGA_C > 1e-10 && selfConsist) warning("Strict error correction (OMEGA_C < 1e-10) is not recommended when learning error rates.")
   if(opts$OMEGA_C >= 1 && selfConsist) stop("Some error correction required when learning error rates.")
@@ -275,7 +280,10 @@ dada <- function(derep,
     if(nconsist > 0) errs[[nconsist]] <- err
 
     for(i in seq_along(derep)) {
-      drpi <- getDerep(derep[[i]])
+      drpi <- if(opts$PER_READ_QUALS && is.character(derep[[i]])) getDerep(derep[[i]], qualityHistogram = TRUE) else getDerep(derep[[i]])
+      if(opts$PER_READ_QUALS && is.null(drpi$qhist)) {
+        stop("PER_READ_QUALS = TRUE needs derep objects made with derepFastq(..., qualityHistogram = TRUE).")
+      }
       # Validate dereplicated sequences
       if(!all(C_isACGT(names(drpi$uniques)))) {
         stop("Invalid derep$uniques vector. Sequences must be made up only of A/C/G/T.")
@@ -366,7 +374,11 @@ dada <- function(derep,
                           opts[["GAPLESS"]],
                           opts[["GREEDY"]],
                           opts[["INDEL_RATE"]],
-                          if(is.null(caches)) NULL else caches[[i]])
+                          if(is.null(caches)) NULL else caches[[i]],
+                          # DadaS: per-read quality histogram (empty = average quality per unique, as DADA2)
+                          if(opts$PER_READ_QUALS) drpi$qhist$values else integer(0),
+                          if(opts$PER_READ_QUALS) drpi$qhist$index - 1L else integer(0),
+                          if(opts$PER_READ_QUALS) as.vector(drpi$qhist$counts) else integer(0))
       
       # Augment the returns
       res$clustering$sequence <- as.character(res$clustering$sequence)
@@ -571,6 +583,16 @@ dada <- function(derep,
 #'  on via this option. If TRUE, unique sequences with reads less than those expected to be generated
 #'  by resequencing just the central unique in their partition are "locked" to that partition.
 #'  Modest (~30\%) speedup, and almost no impact on output. Default is TRUE.
+#' 
+#' PER_READ_QUALS (DadaS): If TRUE, the error model uses the quality scores of each read instead of
+#'  the average quality of each unique sequence. DADA2 averages the qualities of all reads of a unique
+#'  and rounds them; with binned quality scores (NovaSeq/NextSeq) that average is coupled with abundance
+#'  (single-read uniques keep the top bin, abundant ones fall between bins), which distorts the learned
+#'  error rates. With PER_READ_QUALS, the probability of each position is the average over the unique's
+#'  reads of the error rate at each read's quality, and transitions are counted at each read's quality.
+#'  Requires derep objects from \code{derepFastq(..., qualityHistogram = TRUE)} (file paths given to
+#'  \code{dada} or \code{learnErrors} are dereplicated that way automatically). Default FALSE
+#'  (identical to DADA2). Changes results when TRUE.
 #' 
 #' INDEL_RATE (DadaS): The per-event error rate of internal indels. DADA2 ignores indels when computing
 #'  the probability that a sequence was produced by errors from its partition center, so variants that

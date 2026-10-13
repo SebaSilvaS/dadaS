@@ -39,6 +39,10 @@ Raw *raw_new(char *seq, double *qual, unsigned int reads, bool prior) {
   raw->E_minmax = -999.0;
   raw->lock = false;
   raw->correct = true;
+  raw->qcount = NULL; // DadaS: per-read quality histogram, set by dada_uniques when used
+  raw->qfrac = NULL;
+  raw->qvals = NULL;
+  raw->nqv = 0;
   return raw;
 }
 
@@ -46,6 +50,8 @@ Raw *raw_new(char *seq, double *qual, unsigned int reads, bool prior) {
 void raw_free(Raw *raw) {
   free(raw->seq);
   if(raw->qual) { free(raw->qual); }
+  free(raw->qcount);
+  free(raw->qfrac);
   free(raw);  
 }
 

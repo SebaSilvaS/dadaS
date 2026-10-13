@@ -187,8 +187,22 @@ double compute_lambda_ts(Raw *raw, Sub *sub, unsigned int ncol, double *err_mat,
   
   // And calculate lambda
   lambda = 1.0;
-  for(pos1=0;pos1<len1;pos1++) {
-    lambda = lambda * err_mat[tvec[pos1]*ncol+qind[pos1]];
+  if(use_quals && raw->qfrac) {
+    // DadaS (PER_READ_QUALS): each position contributes the average, over the unique's reads, of the
+    // error rate at each read's quality score.
+    const unsigned int V = raw->nqv;
+    for(pos1=0;pos1<len1;pos1++) {
+      const double *fr = &raw->qfrac[pos1*V];
+      const double *er = &err_mat[tvec[pos1]*ncol];
+      double p = 0.0;
+      for(unsigned int v=0; v<V; v++) { p += fr[v] * er[raw->qvals[v]]; }
+      if(p > 1.0) p = 1.0; // a mixture of probabilities; the fractions can sum to 1 + rounding
+      lambda = lambda * p;
+    }
+  } else {
+    for(pos1=0;pos1<len1;pos1++) {
+      lambda = lambda * err_mat[tvec[pos1]*ncol+qind[pos1]];
+    }
   }
   
   if(lambda < 0 || lambda > 1) { dada_stop("Bad lambda."); }
