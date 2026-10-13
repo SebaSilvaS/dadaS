@@ -20,6 +20,12 @@ A faster, more robust fork of [DADA2](https://github.com/benjjneb/dada2) 1.36.0.
   - `setDadaOpt(INDEL_RATE = ...)` lets abundant indel-only variants form their own ASVs.
   - `indelOnlyVariants()` and `estimateIndelRate()` diagnose indel variants and estimate a rate.
   - `loessErrfunMonotone()` is an error function for binned quality scores.
+  - `setDadaOpt(PER_READ_QUALS = TRUE)` with `derepFastq(..., qualityHistogram = TRUE)` fits the error
+    model on each read's quality score instead of the average quality of each unique sequence, which
+    matters for binned qualities (NovaSeq/NextSeq). On sediment data it gives 8.5 % fewer, mostly rare,
+    ASVs; see REVIEW.md.
+- `KDIST_CUTOFF` evaluation: 0.30 instead of 0.42 makes denoising 1.85× faster with 2.4 % more ASVs on
+  sediment data; the default stays 0.42 (REVIEW.md).
 
 The package is named `dadaS`, so it installs alongside `dada2` and the two can be compared directly.
 See [REVIEW.md](REVIEW.md) for every change, its rationale and how it was verified, and [NEWS](NEWS)
@@ -31,7 +37,7 @@ install.packages(".", repos = NULL, type = "source", INSTALL_opts = "--preclean"
 library(dadaS)   # same API as dada2
 ```
 
-Tests: `Rscript -e 'testthat::test_local(".")'` (55 expectations; the comparison against DADA2 runs
+Tests: `Rscript -e 'testthat::test_local(".")'` (69 expectations; the comparison against DADA2 runs
 when `dada2` is installed).
 
 All credit for DADA2 goes to its authors (Callahan et al., 2016). The original README follows.

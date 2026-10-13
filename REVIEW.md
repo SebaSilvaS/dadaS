@@ -40,7 +40,7 @@ reassigning uniques between partitions 4 %. `learnErrors` repeats this up to 10 
 # Install next to dada2 (the package is named dadaS, so both can coexist). Always build clean:
 # R CMD INSTALL reuses stale object files in src/, which once produced a 7x slower build here.
 R CMD INSTALL --preclean .
-# Unit tests (55 expectations, a few minutes). The comparison against DADA2 runs only if dada2 is installed.
+# Unit tests (69 expectations, a few minutes). The comparison against DADA2 runs only if dada2 is installed.
 Rscript -e 'testthat::test_local(".")'
 ```
 
