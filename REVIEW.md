@@ -40,7 +40,7 @@ reassigning uniques between partitions 4 %. `learnErrors` repeats this up to 10 
 # Install next to dada2 (the package is named dadaS, so both can coexist). Always build clean:
 # R CMD INSTALL reuses stale object files in src/, which once produced a 7x slower build here.
 R CMD INSTALL --preclean .
-# Unit tests (55 expectations, a few minutes). The comparison against DADA2 runs only if dada2 is installed.
+# Unit tests (69 expectations, a few minutes). The comparison against DADA2 runs only if dada2 is installed.
 Rscript -e 'testthat::test_local(".")'
 ```
 
@@ -191,8 +191,43 @@ transition, forward reads:
 The per-read model recovers the true Q12 rate and brings Q24 within 1.4× (averaging overestimates them
 2.8× and 4.8×). Q40 remains 3× too high, most likely because true variants that are not yet resolved
 are counted as errors. With averaging plus loess, the smoothing happens to lower Q40, which makes that
-configuration more sensitive in this simulation. Results on the sediment data: see the evaluation
-below when available.
+configuration more sensitive in this simulation.
+
+**Sediment data** (7 samples, full pipeline with `PER_READ_QUALS = TRUE` and `loessErrfun`, compared with
+the default average-quality model). Learned rate per transition:
+
+| Reads | Model | Q12 | Q24 | Q39 | Q40 | Rounds |
+|---|---|---|---|---|---|---|
+| F | Average quality | 6.5e-2 | 1.5e-2 | 4.0e-5 ¹ | 4.1e-3 | 10 (no convergence) |
+| F | Per-read quality | 5.3e-2 | 1.1e-2 | — | 4.9e-3 | 10 (no convergence) |
+| R | Average quality | 6.7e-2 | 1.4e-2 | 6.8e-5 ¹ | 2.1e-3 | 10 (no convergence) |
+| R | Per-read quality | 4.6e-2 | 8.0e-3 | — | 2.7e-3 | 10 (no convergence) |
+
+¹ Observed rate at Q39, a quality that no read has: it exists only because qualities are averaged.
+
+| Sample | F ASVs | R ASVs | Final ASVs |
+|---|---|---|---|
+| t1 | 4,462 → 4,107 | 3,764 → 3,560 | 3,322 → 3,078 |
+| t2 | 2,751 → 2,572 | 2,449 → 2,306 | 1,897 → 1,747 |
+| t3 | 2,462 → 2,301 | 2,099 → 1,993 | 1,653 → 1,518 |
+| t4 | 2,217 → 2,048 | 1,875 → 1,788 | 1,499 → 1,395 |
+| t5 | 2,310 → 2,201 | 1,940 → 1,822 | 1,470 → 1,410 |
+| t6 | 1,179 → 1,112 | 1,047 → 1,002 | 814 → 764 |
+| t7 | 2,431 → 2,279 | 1,872 → 1,763 | 1,498 → 1,412 |
+| **All** | | | **8,781 → 8,033 (−8.5 %)** |
+
+- The per-read model removes the artificial Q39 bin and lowers the Q12/Q24 rates, as in the simulation.
+  The Q40 rate does not drop (~5e-3 per transition, two orders of magnitude above the nominal Q40),
+  and `learnErrors` still does not converge. So averaging is not what inflates Q40 in these data;
+  likely candidates are PCR errors and true variation that is not resolved.
+- Final table: 7,633 ASVs shared, 1,148 only with the average model, 400 only with the per-read model.
+  The dropped ASVs are rare (median 3 reads) and recur little: among those with 9–40 reads, 5.3 % occur
+  in two or more samples, against 19.9 % of the shared ASVs of the same abundance. The added ones
+  behave the same way (9–40 reads: 1.2 %). Reads in the final table: 628,916 → 614,136 (−2.3 %).
+- Cost: dereplication 42 → 90 s (second pass), `learnErrors` 5,031 → 6,292 s, `dada` 2,191 → 2,742 s;
+  whole pipeline about 1.2× slower.
+- The option stays off by default. It is the more conservative model on binned data; a mock community
+  with binned qualities would show whether the ASVs it drops are noise.
 
 ## 6. Left out on purpose (they would change existing outputs)
 
